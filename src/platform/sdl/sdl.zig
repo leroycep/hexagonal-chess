@@ -70,7 +70,7 @@ pub fn init(allocator: *std.mem.Allocator, app_name: [:0]const u8, screenWidth: 
     sdlAssertZero(c.SDL_GL_SetAttribute(.SDL_GL_CONTEXT_PROFILE_MASK, c.SDL_GL_CONTEXT_PROFILE_CORE));
     sdlAssertZero(c.SDL_GL_SetAttribute(.SDL_GL_DOUBLEBUFFER, 1));
 
-    const sdl_window = c.SDL_CreateWindow(app_name, c.SDL_WINDOWPOS_UNDEFINED_MASK, c.SDL_WINDOWPOS_UNDEFINED_MASK, screenWidth, screenHeight, c.SDL_WINDOW_SHOWN | c.SDL_WINDOW_OPENGL | c.SDL_WINDOW_RESIZABLE) orelse {
+    const sdl_window = c.SDL_CreateWindow(app_name, c.SDL_WINDOWPOS_UNDEFINED_MASK, c.SDL_WINDOWPOS_UNDEFINED_MASK, screenWidth, screenHeight, c.SDL_WINDOW_SHOWN | c.SDL_WINDOW_OPENGL) orelse {
         return logSDLErr(error.CouldntCreateWindow);
     };
 

@@ -3,6 +3,7 @@ const c = @import("c.zig");
 pub const G = c.G;
 
 pub const GLuint = c.GLuint;
+pub const GLint = c.GLint;
 
 pub const GL_VERTEX_SHADER = c.GL_VERTEX_SHADER;
 pub const GL_FRAGMENT_SHADER = c.GL_FRAGMENT_SHADER;
@@ -34,6 +35,8 @@ pub const glGetAttribLocation = c.glGetAttribLocation;
 pub const glVertexAttribPointer = c.glVertexAttribPointer;
 pub const glEnableVertexAttribArray = c.glEnableVertexAttribArray;
 pub const glBindVertexArray = c.glBindVertexArray;
+pub const glGetUniformLocation = c.glGetUniformLocation;
+pub const glUniformMatrix4fv = c.glUniformMatrix4fv;
 
 pub fn glShaderSource(shader: c.GLuint, source: []const u8) void {
     c.glShaderSource(shader, 1, &source.ptr, &@intCast(c_int, source.len));
