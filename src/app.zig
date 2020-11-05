@@ -2,44 +2,47 @@ const std = @import("std");
 const builtin = @import("builtin");
 const platform = @import("platform.zig");
 const Vec2f = platform.Vec2f;
+const vec2f = platform.vec2f;
+const Vec2i = platform.Vec2i;
+const vec2i = platform.vec2i;
 const pi = std.math.pi;
 const OBB = collision.OBB;
+const Board = @import("./board.zig").Board(bool, 11);
+const ArrayList = std.ArrayList;
 
 const DEG_TO_RAD = std.math.pi / 180.0;
-const HEXAGON_SIZE = 40;
-const HEXAGON_X = HEXAGON_SIZE * std.math.cos(@as(f32, 60.0 * DEG_TO_RAD));
-const HEXAGON_Y = HEXAGON_SIZE * std.math.sin(@as(f32, 60.0 * DEG_TO_RAD));
-
-const VERTS = [_]f32{
-    100 + -HEXAGON_SIZE, 100 + 0.0,
-    100 + -HEXAGON_X,    100 + HEXAGON_Y,
-    100 + HEXAGON_X,     100 + HEXAGON_Y,
-    100 + HEXAGON_SIZE,  100 + 0.0,
-    100 + HEXAGON_X,     100 + -HEXAGON_Y,
-    100 + -HEXAGON_X,    100 + -HEXAGON_Y,
-};
-const INDICES = [_]u16{ 0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5 };
 
 const VERT_CODE =
-    \\ attribute vec2 coordinates;
+    \\ #version 300 es
+    \\
+    \\ in highp vec2 coordinates;
+    \\ in lowp vec3 color;
+    \\
+    \\ out vec3 vertexColor;
+    \\
     \\ uniform mat4 projectionMatrix;
     \\
     \\ void main(void) {
     \\   gl_Position = vec4(coordinates, 0.0, 1.0);
     \\   gl_Position *= projectionMatrix;
+    \\   vertexColor = color;
     \\ }
 ;
 
 const FRAG_CODE =
+    \\ #version 300 es
+    \\
+    \\ in lowp vec3 vertexColor;
+    \\
+    \\ out lowp vec4 FragColor;
+    \\
     \\ void main(void) {
-    \\   gl_FragColor = vec4(1, 0.5, 0, 1.0);
+    \\   FragColor = vec4(vertexColor, 1.0);
     \\ }
 ;
 
 var shaderProgram: platform.GLuint = undefined;
-var vertexBuffer: platform.GLuint = undefined;
-var indexBuffer: platform.GLuint = undefined;
-var vao: platform.GLuint = undefined;
+var boardMesh: Mesh = undefined;
 var projectionMatrixUniform: platform.GLint = undefined;
 
 pub fn onInit(context: *platform.Context) void {
@@ -58,21 +61,7 @@ pub fn onInit(context: *platform.Context) void {
     platform.glUseProgram(shaderProgram);
 
     // Set up VAO
-    vao = platform.glCreateVertexArray();
-    platform.glBindVertexArray(vao);
-
-    // Create buffers and load data into them
-    vertexBuffer = platform.glCreateBuffer();
-    platform.glBindBuffer(platform.GL_ARRAY_BUFFER, vertexBuffer);
-    platform.glBufferData(platform.GL_ARRAY_BUFFER, VERTS.len * @sizeOf(f32), &VERTS, platform.GL_STATIC_DRAW);
-
-    indexBuffer = platform.glCreateBuffer();
-    platform.glBindBuffer(platform.GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    platform.glBufferData(platform.GL_ELEMENT_ARRAY_BUFFER, INDICES.len * @sizeOf(u16), &INDICES, platform.GL_STATIC_DRAW);
-
-    var coordinates = @intCast(c_uint, platform.glGetAttribLocation(shaderProgram, "coordinates"));
-    platform.glVertexAttribPointer(coordinates, 2, platform.GL_FLOAT, platform.GL_FALSE, 0, null);
-    platform.glEnableVertexAttribArray(coordinates);
+    boardMesh = genBoardTileBackgroundVAO(context.alloc, shaderProgram) catch unreachable;
 
     projectionMatrixUniform = platform.glGetUniformLocation(shaderProgram, "projectionMatrix");
 }
@@ -106,5 +95,101 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     platform.glViewport(0, 0, 640, 480);
 
     // Draw the vertices
-    platform.glDrawElements(platform.GL_TRIANGLES, INDICES.len, platform.GL_UNSIGNED_SHORT, null);
+    platform.glBindVertexArray(boardMesh.vao);
+    platform.glDrawElements(platform.GL_TRIANGLES, boardMesh.count, platform.GL_UNSIGNED_SHORT, null);
+}
+
+const Mesh = struct {
+    vao: platform.GLuint,
+    count: platform.GLsizei,
+};
+
+fn genBoardTileBackgroundVAO(allocator: *std.mem.Allocator, shader: platform.GLuint) !Mesh {
+    const UNIT = 20;
+    const HEXAGON_X = UNIT * std.math.cos(@as(f32, 60.0 * DEG_TO_RAD));
+    const HEXAGON_Y = UNIT * std.math.sin(@as(f32, 60.0 * DEG_TO_RAD));
+
+    var vertices = ArrayList(f32).init(allocator);
+    defer vertices.deinit();
+    var colors = ArrayList(u8).init(allocator);
+    defer colors.deinit();
+    var indices = ArrayList(u16).init(allocator);
+    defer indices.deinit();
+
+    var r: i32 = 0;
+    while (r < Board.SIZE) : (r += 1) {
+        var q: i32 = 0;
+        while (q < Board.SIZE) : (q += 1) {
+            if (q + r < 5 or q + r > 15) continue;
+            const baseIdx = @intCast(u16, @divExact(vertices.items.len, 2));
+            const pcoords = flat_hex_to_pixel(UNIT, Vec2i.init(q, r));
+
+            try vertices.appendSlice(&[_]f32{
+                pcoords.x() - UNIT,      pcoords.y() + 0.0,
+                pcoords.x() - HEXAGON_X, pcoords.y() + HEXAGON_Y,
+                pcoords.x() + HEXAGON_X, pcoords.y() + HEXAGON_Y,
+                pcoords.x() + UNIT,      pcoords.y() + 0.0,
+                pcoords.x() + HEXAGON_X, pcoords.y() - HEXAGON_Y,
+                pcoords.x() - HEXAGON_X, pcoords.y() - HEXAGON_Y,
+            });
+
+            // Add to color data
+            {
+                const color = switch (@mod(q + r * Board.SIZE, 3)) {
+                    0 => [_]u8{ 130, 102, 68 },
+                    1 => [_]u8{ 255, 235, 205 },
+                    2 => [_]u8{ 255, 150, 150 },
+                    else => unreachable,
+                };
+
+                var i: usize = 0;
+                while (i < 6) : (i += 1) {
+                    try colors.appendSlice(&color);
+                }
+            }
+
+            try indices.appendSlice(&[_]u16{
+                baseIdx + 0, baseIdx + 1, baseIdx + 2,
+                baseIdx + 0, baseIdx + 2, baseIdx + 3,
+                baseIdx + 0, baseIdx + 3, baseIdx + 4,
+                baseIdx + 0, baseIdx + 4, baseIdx + 5,
+            });
+        }
+    }
+
+    // Set up VAO
+    const vao = platform.glCreateVertexArray();
+    platform.glBindVertexArray(vao);
+
+    // Create buffers and load data into them
+    const vertexBuffer = platform.glCreateBuffer();
+    platform.glBindBuffer(platform.GL_ARRAY_BUFFER, vertexBuffer);
+    platform.glBufferData(platform.GL_ARRAY_BUFFER, @intCast(c_long, vertices.items.len) * @sizeOf(f32), vertices.items.ptr, platform.GL_STATIC_DRAW);
+
+    const coordinates = @intCast(c_uint, platform.glGetAttribLocation(shader, "coordinates"));
+    platform.glVertexAttribPointer(coordinates, 2, platform.GL_FLOAT, platform.GL_FALSE, 0, null);
+    platform.glEnableVertexAttribArray(coordinates);
+
+    const colorBuffer = platform.glCreateBuffer();
+    platform.glBindBuffer(platform.GL_ARRAY_BUFFER, colorBuffer);
+    platform.glBufferData(platform.GL_ARRAY_BUFFER, @intCast(c_long, colors.items.len) * @sizeOf(u8), colors.items.ptr, platform.GL_STATIC_DRAW);
+
+    const color_loc = @intCast(c_uint, platform.glGetAttribLocation(shader, "color"));
+    platform.glVertexAttribPointer(color_loc, 3, platform.GL_UNSIGNED_BYTE, platform.GL_TRUE, 0, null);
+    platform.glEnableVertexAttribArray(color_loc);
+
+    const indexBuffer = platform.glCreateBuffer();
+    platform.glBindBuffer(platform.GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    platform.glBufferData(platform.GL_ELEMENT_ARRAY_BUFFER, @intCast(c_long, indices.items.len) * @sizeOf(u16), indices.items.ptr, platform.GL_STATIC_DRAW);
+
+    return Mesh{
+        .vao = vao,
+        .count = @intCast(platform.GLsizei, indices.items.len),
+    };
+}
+
+fn flat_hex_to_pixel(size: f32, hex: Vec2i) Vec2f {
+    var x = size * (3.0 / 2.0 * @intToFloat(f32, hex.v[0]));
+    var y = size * (std.math.sqrt(@as(f32, 3.0)) / 2.0 * @intToFloat(f32, hex.v[0]) + std.math.sqrt(@as(f32, 3.0)) * @intToFloat(f32, hex.v[1]));
+    return Vec2f.init(x, y);
 }
