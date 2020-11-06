@@ -69,6 +69,7 @@ var projectionMatrixUniform: platform.GLint = undefined;
 var renderer: platform.renderer.Renderer = undefined;
 var mouse_pos = vec2f(100, 100);
 var game_board = Board.init(null);
+var translation = vec2f(150, -30);
 
 pub fn onInit(context: *platform.Context) void {
     var vertShader = platform.glCreateShader(platform.GL_VERTEX_SHADER);
@@ -150,14 +151,21 @@ pub fn render(context: *platform.Context, alpha: f64) void {
 
     // Set the scaling matrix so that 1 unit = 1 pixel
     const screen_size = context.getScreenSize();
+    const translationMatrix = [_]f32{
+        1, 0, 0, translation.x(),
+        0, 1, 0, translation.y(),
+        0, 0, 1, 0,
+        0, 0, 0, 1,
+    };
     const scalingMatrix = [_]f32{
         2 / @intToFloat(f32, screen_size.x()), 0,                                      0, -1,
         0,                                     -2 / @intToFloat(f32, screen_size.y()), 0, 1,
         0,                                     0,                                      1, 0,
         0,                                     0,                                      0, 1,
     };
+    const projectionMatrix = platform.mat.mulMat4(scalingMatrix, translationMatrix);
 
-    platform.glUniformMatrix4fv(projectionMatrixUniform, 1, platform.GL_FALSE, &scalingMatrix);
+    platform.glUniformMatrix4fv(projectionMatrixUniform, 1, platform.GL_FALSE, &projectionMatrix);
 
     // Clear the screen
     platform.glClearColor(0.5, 0.5, 0.5, 0.9);
@@ -168,9 +176,9 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     platform.glBindVertexArray(boardBackgroundMesh.vao);
     platform.glDrawElements(platform.GL_TRIANGLES, boardBackgroundMesh.count, platform.GL_UNSIGNED_SHORT, null);
 
-    const selection_pos = flat_hex_to_pixel(20, pixel_to_flat_hex(20, mouse_pos));
+    const selection_pos = flat_hex_to_pixel(20, pixel_to_flat_hex(20, mouse_pos.sub(translation)));
 
-    renderer.projectionMatrix = scalingMatrix;
+    renderer.projectionMatrix = projectionMatrix;
     renderer.begin();
 
     var board_iter = game_board.iterator();

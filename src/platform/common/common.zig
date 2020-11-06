@@ -1,6 +1,8 @@
 pub const renderer = @import("./renderer.zig");
 pub const gui = @import("./gui/gui.zig");
 
+pub const mat = @import("./mat.zig");
+
 pub const Vec = @import("./vec.zig").Vec;
 pub const Vec2i = Vec(2, i32);
 pub const Vec2u = Vec(2, u32);
