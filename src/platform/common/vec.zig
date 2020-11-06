@@ -19,6 +19,15 @@ pub fn Vec(comptime S: usize, comptime T: type) type {
                         },
                     };
                 }
+
+                pub fn rotate(self: Self, radians: f32) Self {
+                    return .{
+                        .v = [_]T{
+                            self.x() * std.math.cos(radians) - self.y() * std.math.sin(radians),
+                            self.y() * std.math.cos(radians) + self.x() * std.math.sin(radians),
+                        },
+                    };
+                }
             },
             3 => struct {
                 pub fn init(xv: T, yv: T, zv: T) Self {
