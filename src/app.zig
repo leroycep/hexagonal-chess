@@ -8,7 +8,7 @@ const Vec2i = platform.Vec2i;
 const vec2i = platform.vec2i;
 const pi = std.math.pi;
 const OBB = collision.OBB;
-const Board = @import("./board.zig").Board(bool, 11);
+const board = @import("./board.zig");
 const ArrayList = std.ArrayList;
 
 const DEG_TO_RAD = std.math.pi / 180.0;
@@ -42,11 +42,33 @@ const FRAG_CODE =
     \\ }
 ;
 
+const Piece = struct {
+    kind: Kind,
+    color: Color,
+
+    const Kind = enum {
+        Pawn,
+        Rook,
+        Knight,
+        Bishop,
+        Queen,
+        King,
+    };
+
+    const Color = enum {
+        Black,
+        White,
+    };
+};
+
+const Board = board.Board(?Piece, 6);
+
 var shaderProgram: platform.GLuint = undefined;
-var boardMesh: Mesh = undefined;
+var boardBackgroundMesh: Mesh = undefined;
 var projectionMatrixUniform: platform.GLint = undefined;
 var renderer: platform.renderer.Renderer = undefined;
 var mouse_pos = vec2f(100, 100);
+var game_board = Board.init(null);
 
 pub fn onInit(context: *platform.Context) void {
     var vertShader = platform.glCreateShader(platform.GL_VERTEX_SHADER);
@@ -64,7 +86,7 @@ pub fn onInit(context: *platform.Context) void {
     platform.glUseProgram(shaderProgram);
 
     // Set up VAO
-    boardMesh = genBoardTileBackgroundVAO(context.alloc, shaderProgram) catch unreachable;
+    boardBackgroundMesh = genBoardTileBackgroundVAO(context.alloc, shaderProgram) catch unreachable;
 
     projectionMatrixUniform = platform.glGetUniformLocation(shaderProgram, "projectionMatrix");
 
@@ -105,8 +127,8 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     platform.glViewport(0, 0, 640, 480);
 
     // Draw the vertices
-    platform.glBindVertexArray(boardMesh.vao);
-    platform.glDrawElements(platform.GL_TRIANGLES, boardMesh.count, platform.GL_UNSIGNED_SHORT, null);
+    platform.glBindVertexArray(boardBackgroundMesh.vao);
+    platform.glDrawElements(platform.GL_TRIANGLES, boardBackgroundMesh.count, platform.GL_UNSIGNED_SHORT, null);
 
     const selection_pos = flat_hex_to_pixel(20, pixel_to_flat_hex(20, mouse_pos));
 
@@ -133,45 +155,41 @@ fn genBoardTileBackgroundVAO(allocator: *std.mem.Allocator, shader: platform.GLu
     var indices = ArrayList(u16).init(allocator);
     defer indices.deinit();
 
-    var r: i32 = 0;
-    while (r < Board.SIZE) : (r += 1) {
-        var q: i32 = 0;
-        while (q < Board.SIZE) : (q += 1) {
-            if (q + r < 5 or q + r > 15) continue;
-            const baseIdx = @intCast(u16, @divExact(vertices.items.len, 2));
-            const pcoords = flat_hex_to_pixel(UNIT, Vec2i.init(q, r));
+    var board_iter = game_board.iterator();
+    while (board_iter.next()) |res| {
+        const baseIdx = @intCast(u16, @divExact(vertices.items.len, 2));
+        const pcoords = flat_hex_to_pixel(UNIT, res.pos);
 
-            try vertices.appendSlice(&[_]f32{
-                pcoords.x() - UNIT,      pcoords.y() + 0.0,
-                pcoords.x() - HEXAGON_X, pcoords.y() + HEXAGON_Y,
-                pcoords.x() + HEXAGON_X, pcoords.y() + HEXAGON_Y,
-                pcoords.x() + UNIT,      pcoords.y() + 0.0,
-                pcoords.x() + HEXAGON_X, pcoords.y() - HEXAGON_Y,
-                pcoords.x() - HEXAGON_X, pcoords.y() - HEXAGON_Y,
-            });
+        try vertices.appendSlice(&[_]f32{
+            pcoords.x() - UNIT,      pcoords.y() + 0.0,
+            pcoords.x() - HEXAGON_X, pcoords.y() + HEXAGON_Y,
+            pcoords.x() + HEXAGON_X, pcoords.y() + HEXAGON_Y,
+            pcoords.x() + UNIT,      pcoords.y() + 0.0,
+            pcoords.x() + HEXAGON_X, pcoords.y() - HEXAGON_Y,
+            pcoords.x() - HEXAGON_X, pcoords.y() - HEXAGON_Y,
+        });
 
-            // Add to color data
-            {
-                const color = switch (@mod(q + r * Board.SIZE, 3)) {
-                    0 => [_]u8{ 130, 102, 68 },
-                    1 => [_]u8{ 255, 235, 205 },
-                    2 => [_]u8{ 255, 150, 150 },
-                    else => unreachable,
-                };
+        // Add to color data
+        {
+            const color = switch (@mod(res.pos.x() + res.pos.y() * Board.SIZE, 3)) {
+                0 => [_]u8{ 130, 102, 68 },
+                1 => [_]u8{ 255, 235, 205 },
+                2 => [_]u8{ 255, 150, 150 },
+                else => unreachable,
+            };
 
-                var i: usize = 0;
-                while (i < 6) : (i += 1) {
-                    try colors.appendSlice(&color);
-                }
+            var i: usize = 0;
+            while (i < 6) : (i += 1) {
+                try colors.appendSlice(&color);
             }
-
-            try indices.appendSlice(&[_]u16{
-                baseIdx + 0, baseIdx + 1, baseIdx + 2,
-                baseIdx + 0, baseIdx + 2, baseIdx + 3,
-                baseIdx + 0, baseIdx + 3, baseIdx + 4,
-                baseIdx + 0, baseIdx + 4, baseIdx + 5,
-            });
         }
+
+        try indices.appendSlice(&[_]u16{
+            baseIdx + 0, baseIdx + 1, baseIdx + 2,
+            baseIdx + 0, baseIdx + 2, baseIdx + 3,
+            baseIdx + 0, baseIdx + 3, baseIdx + 4,
+            baseIdx + 0, baseIdx + 4, baseIdx + 5,
+        });
     }
 
     // Set up VAO
