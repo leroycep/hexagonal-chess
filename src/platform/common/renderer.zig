@@ -11,9 +11,9 @@ const VERT_SHADER_SRC =
     \\ #version 300 es
     \\
     \\ in highp vec2 coordinates;
-    \\ in lowp vec3 color;
+    \\ in lowp vec4 color;
     \\
-    \\ out vec3 vertexColor;
+    \\ out vec4 vertexColor;
     \\
     \\ uniform mat4 projectionMatrix;
     \\
@@ -27,12 +27,12 @@ const VERT_SHADER_SRC =
 const FRAG_SHADER_SRC =
     \\ #version 300 es
     \\
-    \\ in lowp vec3 vertexColor;
+    \\ in lowp vec4 vertexColor;
     \\
     \\ out lowp vec4 FragColor;
     \\
     \\ void main(void) {
-    \\   FragColor = vec4(vertexColor, 1.0);
+    \\   FragColor = vertexColor;
     \\ }
 ;
 
@@ -56,13 +56,10 @@ pub const Renderer = struct {
     projectionMatrixUniformLocation: platform.GLint,
 
     const NUM_ATTR = 2;
-    const NUM_COLOR_ATTR = 3;
+    const NUM_COLOR_ATTR = 4;
     const MAX_VERTS = 512;
 
     pub fn init() Renderer {
-        platform.glEnable(platform.GL_BLEND);
-        platform.glBlendFunc(platform.GL_SRC_ALPHA, platform.GL_ONE_MINUS_SRC_ALPHA);
-
         const vShader = platform.glCreateShader(platform.GL_VERTEX_SHADER);
         platform.glShaderSource(vShader, VERT_SHADER_SRC);
         platform.glCompileShader(vShader);
@@ -105,6 +102,8 @@ pub const Renderer = struct {
         // Setup Vertex Array
         const vao = platform.glCreateVertexArray();
         platform.glBindVertexArray(vao);
+        platform.glEnable(platform.GL_BLEND);
+        platform.glBlendFunc(platform.GL_SRC_ALPHA, platform.GL_ONE_MINUS_SRC_ALPHA);
 
         // Set up vertex buffers
         const coordinatesLocation = @intCast(c_uint, platform.glGetAttribLocation(shaderProgram, "coordinates"));
@@ -154,6 +153,7 @@ pub const Renderer = struct {
         self.colors[idx * NUM_COLOR_ATTR + 0] = color.r;
         self.colors[idx * NUM_COLOR_ATTR + 1] = color.g;
         self.colors[idx * NUM_COLOR_ATTR + 2] = color.b;
+        self.colors[idx * NUM_COLOR_ATTR + 3] = color.a;
 
         return idx;
     }
@@ -255,12 +255,12 @@ pub const Renderer = struct {
 
         platform.glBindBuffer(platform.GL_ARRAY_BUFFER, self.vbo);
         platform.glBufferData(platform.GL_ARRAY_BUFFER, @intCast(c_long, self.vertIdx * NUM_ATTR * @sizeOf(f32)), &self.verts, platform.GL_DYNAMIC_DRAW);
-        platform.glVertexAttribPointer(self.coordinatesLocation, 2, platform.GL_FLOAT, platform.GL_FALSE, 0, null);
+        platform.glVertexAttribPointer(self.coordinatesLocation, NUM_ATTR, platform.GL_FLOAT, platform.GL_FALSE, 0, null);
         platform.glEnableVertexAttribArray(self.coordinatesLocation);
 
         platform.glBindBuffer(platform.GL_ARRAY_BUFFER, self.colorBuffer);
         platform.glBufferData(platform.GL_ARRAY_BUFFER, @intCast(c_long, self.vertIdx * NUM_COLOR_ATTR * @sizeOf(u8)), &self.colors, platform.GL_DYNAMIC_DRAW);
-        platform.glVertexAttribPointer(self.colorLocation, 3, platform.GL_UNSIGNED_BYTE, platform.GL_TRUE, 0, null);
+        platform.glVertexAttribPointer(self.colorLocation, NUM_COLOR_ATTR, platform.GL_UNSIGNED_BYTE, platform.GL_TRUE, 0, null);
         platform.glEnableVertexAttribArray(self.colorLocation);
 
         platform.glBindBuffer(platform.GL_ELEMENT_ARRAY_BUFFER, self.ebo);

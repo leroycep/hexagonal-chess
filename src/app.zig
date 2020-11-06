@@ -112,7 +112,7 @@ pub fn render(context: *platform.Context, alpha: f64) void {
 
     renderer.projectionMatrix = scalingMatrix;
     renderer.begin();
-    renderer.pushFlatHexagon(selection_pos, 20, platform.Color{ .r = 10, .g = 0xFF, .b = 10, .a = 0xFF }, 0);
+    renderer.pushFlatHexagon(selection_pos, 20, platform.Color{ .r = 10, .g = 0xFF, .b = 10, .a = 0x33 }, 0);
     renderer.flush();
 }
 
