@@ -91,6 +91,44 @@ pub fn onInit(context: *platform.Context) void {
     projectionMatrixUniform = platform.glGetUniformLocation(shaderProgram, "projectionMatrix");
 
     renderer = platform.renderer.Renderer.init();
+
+    game_board.set(vec2i(1, 4), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(2, 4), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(3, 4), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(4, 4), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(5, 4), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(6, 3), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(7, 2), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(8, 1), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(9, 0), Piece{ .kind = .Pawn, .color = .Black });
+    game_board.set(vec2i(2, 3), Piece{ .kind = .Rook, .color = .Black });
+    game_board.set(vec2i(3, 2), Piece{ .kind = .Knight, .color = .Black });
+    game_board.set(vec2i(4, 1), Piece{ .kind = .Queen, .color = .Black });
+    game_board.set(vec2i(5, 0), Piece{ .kind = .Bishop, .color = .Black });
+    game_board.set(vec2i(5, 1), Piece{ .kind = .Bishop, .color = .Black });
+    game_board.set(vec2i(5, 2), Piece{ .kind = .Bishop, .color = .Black });
+    game_board.set(vec2i(6, 0), Piece{ .kind = .King, .color = .Black });
+    game_board.set(vec2i(7, 0), Piece{ .kind = .Knight, .color = .Black });
+    game_board.set(vec2i(8, 0), Piece{ .kind = .Rook, .color = .Black });
+
+    game_board.set(vec2i(1, 10), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(2, 9), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(3, 8), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(4, 7), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(5, 6), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(6, 6), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(7, 6), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(8, 6), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(9, 6), Piece{ .kind = .Pawn, .color = .White });
+    game_board.set(vec2i(2, 10), Piece{ .kind = .Rook, .color = .White });
+    game_board.set(vec2i(3, 10), Piece{ .kind = .Knight, .color = .White });
+    game_board.set(vec2i(4, 10), Piece{ .kind = .Queen, .color = .White });
+    game_board.set(vec2i(5, 10), Piece{ .kind = .Bishop, .color = .White });
+    game_board.set(vec2i(5, 9), Piece{ .kind = .Bishop, .color = .White });
+    game_board.set(vec2i(5, 8), Piece{ .kind = .Bishop, .color = .White });
+    game_board.set(vec2i(6, 9), Piece{ .kind = .King, .color = .White });
+    game_board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
+    game_board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
 }
 
 pub fn onEvent(context: *platform.Context, event: platform.Event) void {
@@ -134,6 +172,24 @@ pub fn render(context: *platform.Context, alpha: f64) void {
 
     renderer.projectionMatrix = scalingMatrix;
     renderer.begin();
+
+    var board_iter = game_board.iterator();
+    while (board_iter.next()) |res| {
+        if (res.tile.* == null) continue;
+        const tile = res.tile.*.?;
+
+        const piece_pos = flat_hex_to_pixel(20, res.pos);
+        const color = switch (tile.color) {
+            .Black => platform.Color.from_u32(0x000000FF),
+            .White => platform.Color.from_u32(0xFFFFFFFF),
+        };
+        switch (tile.kind) {
+            else => {
+                renderer.pushRect(piece_pos, vec2f(20, 20), color, 0);
+            },
+        }
+    }
+
     renderer.pushFlatHexagon(selection_pos, 20, platform.Color{ .r = 10, .g = 0xFF, .b = 10, .a = 0x33 }, 0);
     renderer.flush();
 }

@@ -33,13 +33,13 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
             return r * SIZE + q;
         }
 
-        pub fn get(this: @This(), q: isize, r: isize) ?T {
-            const i = this.idx(q, r) orelse return null;
+        pub fn get(this: @This(), pos: Vec2i) ?T {
+            const i = this.idx(pos) orelse return null;
             return this.tiles[i];
         }
 
-        pub fn set(this: *@This(), q: usize, r: usize, value: T) void {
-            const i = this.idx(q, r) orelse return;
+        pub fn set(this: *@This(), pos: Vec2i, value: T) void {
+            const i = this.idx(pos) orelse return;
             this.tiles[i] = value;
         }
 
