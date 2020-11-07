@@ -8,7 +8,9 @@ const Vec2i = platform.Vec2i;
 const vec2i = platform.vec2i;
 const pi = std.math.pi;
 const OBB = collision.OBB;
-const board = @import("./board.zig");
+const Piece = @import("./piece.zig").Piece;
+const Board = @import("./board.zig").Board(?Piece, 6);
+const moves = @import("./moves.zig");
 const ArrayList = std.ArrayList;
 
 const DEG_TO_RAD = std.math.pi / 180.0;
@@ -42,27 +44,6 @@ const FRAG_CODE =
     \\ }
 ;
 
-const Piece = struct {
-    kind: Kind,
-    color: Color,
-
-    const Kind = enum {
-        Pawn,
-        Rook,
-        Knight,
-        Bishop,
-        Queen,
-        King,
-    };
-
-    const Color = enum {
-        Black,
-        White,
-    };
-};
-
-const Board = board.Board(?Piece, 6);
-
 var shaderProgram: platform.GLuint = undefined;
 var boardBackgroundMesh: Mesh = undefined;
 var projectionMatrixUniform: platform.GLint = undefined;
@@ -70,6 +51,7 @@ var renderer: platform.renderer.Renderer = undefined;
 var mouse_pos = vec2f(100, 100);
 var game_board = Board.init(null);
 var translation = vec2f(150, -30);
+var moves_for_selected_piece: ArrayList(moves.Move) = undefined;
 
 pub fn onInit(context: *platform.Context) void {
     var vertShader = platform.glCreateShader(platform.GL_VERTEX_SHADER);
@@ -130,6 +112,8 @@ pub fn onInit(context: *platform.Context) void {
     game_board.set(vec2i(6, 9), Piece{ .kind = .King, .color = .White });
     game_board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
     game_board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
+
+    moves_for_selected_piece = ArrayList(moves.Move).init(context.alloc);
 }
 
 pub fn onEvent(context: *platform.Context, event: platform.Event) void {
@@ -139,6 +123,12 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
         },
         .MouseMotion => |move_ev| {
             mouse_pos = move_ev.pos.intToFloat(f32);
+        },
+        .MouseButtonDown => |click_ev| {
+            const clicked_tile = pixel_to_flat_hex(20, click_ev.pos.intToFloat(f32).sub(translation));
+            moves_for_selected_piece.resize(0) catch unreachable;
+            moves.getMovesForPieceAtLocation(game_board, clicked_tile, &moves_for_selected_piece) catch unreachable;
+            std.log.debug("number of moves: {}", .{moves_for_selected_piece.items.len});
         },
         else => {},
     }
@@ -196,6 +186,11 @@ pub fn render(context: *platform.Context, alpha: f64) void {
                 renderer.pushRect(piece_pos, vec2f(20, 20), color, 0);
             },
         }
+    }
+
+    for (moves_for_selected_piece.items) |move| {
+        const move_pos = flat_hex_to_pixel(20, move.end_location);
+        renderer.pushFlatHexagon(move_pos, 20, platform.Color{ .r = 0x99, .g = 0xFF, .b = 0x99, .a = 0x99 }, 0);
     }
 
     renderer.pushFlatHexagon(selection_pos, 20, platform.Color{ .r = 10, .g = 0xFF, .b = 10, .a = 0x33 }, 0);
