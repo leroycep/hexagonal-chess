@@ -15,6 +15,15 @@ pub const RGBA = struct {
             .a = @intCast(u8, (color_code & 0x000000FF)),
         };
     }
+
+    pub fn withAlpha(this: @This(), a: u8) @This() {
+        return @This(){
+            .r = this.r,
+            .g = this.g,
+            .b = this.b,
+            .a = a,
+        };
+    }
 };
 
 pub const RGB = struct {

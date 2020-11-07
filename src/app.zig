@@ -12,6 +12,7 @@ const Piece = @import("./piece.zig").Piece;
 const Board = @import("./board.zig").Board(?Piece, 6);
 const moves = @import("./moves.zig");
 const ArrayList = std.ArrayList;
+const RGB = platform.color.RGB;
 
 const DEG_TO_RAD = std.math.pi / 180.0;
 
@@ -44,6 +45,13 @@ const FRAG_CODE =
     \\ }
 ;
 
+//const COLOR_HOVER = RGB.from_hsluv(213.4, 92.2, 77.4).withAlpha(0x99);
+const COLOR_SELECTED = RGB.from_hsluv(213.4, 92.2, 77.4).withAlpha(0x99);
+const COLOR_MOVE = RGB.from_hsluv(131.4, 55.0, 54.2).withAlpha(0x99);
+const COLOR_CAPTURE = RGB.from_hsluv(12.9, 55.0, 54.2).withAlpha(0x99);
+const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44);//RGB.from_hsluv(148.4, 80, 70).withAlpha(0x44);
+const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77);//RGB.from_hsluv(30, 80, 70).withAlpha(0x44);
+
 var shaderProgram: platform.GLuint = undefined;
 var boardBackgroundMesh: Mesh = undefined;
 var projectionMatrixUniform: platform.GLint = undefined;
@@ -51,6 +59,8 @@ var renderer: platform.renderer.Renderer = undefined;
 var mouse_pos = vec2f(100, 100);
 var game_board = Board.init(null);
 var translation = vec2f(150, -30);
+
+var selected_piece: ?Vec2i = null;
 var moves_for_selected_piece: ArrayList(moves.Move) = undefined;
 
 pub fn onInit(context: *platform.Context) void {
@@ -113,6 +123,7 @@ pub fn onInit(context: *platform.Context) void {
     game_board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
     game_board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
 
+    game_board.set(vec2i(8, 3), Piece{ .kind = .Queen, .color = .Black });
     game_board.set(vec2i(5, 5), Piece{ .kind = .Knight, .color = .White });
 
     moves_for_selected_piece = ArrayList(moves.Move).init(context.alloc);
@@ -127,10 +138,20 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
             mouse_pos = move_ev.pos.intToFloat(f32);
         },
         .MouseButtonDown => |click_ev| {
-            const clicked_tile = pixel_to_flat_hex(20, click_ev.pos.intToFloat(f32).sub(translation));
             moves_for_selected_piece.resize(0) catch unreachable;
-            moves.getMovesForPieceAtLocation(game_board, clicked_tile, &moves_for_selected_piece) catch unreachable;
-            std.log.debug("number of moves: {}", .{moves_for_selected_piece.items.len});
+            const clicked_tile = pixel_to_flat_hex(20, click_ev.pos.intToFloat(f32).sub(translation));
+
+            if (!std.meta.eql(selected_piece, clicked_tile)) {
+                const tile = game_board.get(clicked_tile);
+                if (tile != null and tile.? != null) {
+                    moves.getMovesForPieceAtLocation(game_board, clicked_tile, &moves_for_selected_piece) catch unreachable;
+                    selected_piece = clicked_tile;
+                } else {
+                    selected_piece = null;
+                }
+            } else {
+                selected_piece = null;
+            }
         },
         else => {},
     }
@@ -173,6 +194,33 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     renderer.projectionMatrix = projectionMatrix;
     renderer.begin();
 
+    if (selected_piece) |pos| {
+        const selected_piece_pixel_pos = flat_hex_to_pixel(20, pos);
+        renderer.pushFlatHexagon(selected_piece_pixel_pos, 20, COLOR_SELECTED, 0);
+    }
+
+    for (moves_for_selected_piece.items) |move| {
+        const move_pos = flat_hex_to_pixel(20, move.end_location);
+
+        const move_color = switch (move.end_piece.color) {
+            .White => COLOR_MOVE,
+            .Black => COLOR_MOVE_OTHER,
+        };
+        const capture_color = switch (move.end_piece.color) {
+            .White => COLOR_CAPTURE,
+            .Black => COLOR_CAPTURE_OTHER,
+        };
+
+        if (std.meta.eql(move.captured_piece, move.end_location)) {
+            renderer.pushFlatHexagon(move_pos, 20, capture_color, 0);
+        } else if (move.captured_piece) |captured_piece_location| {
+            renderer.pushFlatHexagon(move_pos, 20, move_color, 0);
+            renderer.pushFlatHexagon(flat_hex_to_pixel(20, captured_piece_location), 20, capture_color, 0);
+        } else {
+            renderer.pushFlatHexagon(move_pos, 20, move_color, 0);
+        }
+    }
+
     var board_iter = game_board.iterator();
     while (board_iter.next()) |res| {
         if (res.tile.* == null) continue;
@@ -190,23 +238,7 @@ pub fn render(context: *platform.Context, alpha: f64) void {
         }
     }
 
-    for (moves_for_selected_piece.items) |move| {
-        const move_pos = flat_hex_to_pixel(20, move.end_location);
-
-        const MOVE_COLOR = platform.color.RGBA.from_u32(0x99FF9999);
-        const CAPTURE_COLOR = platform.color.RGBA.from_u32(0xFF999999);
-
-        if (std.meta.eql(move.captured_piece, move.end_location)) {
-            renderer.pushFlatHexagon(move_pos, 20, CAPTURE_COLOR, 0);
-        } else if (move.captured_piece) |captured_piece_location| {
-            renderer.pushFlatHexagon(move_pos, 20, MOVE_COLOR, 0);
-            renderer.pushFlatHexagon(flat_hex_to_pixel(20, captured_piece_location), 20, CAPTURE_COLOR, 0);
-        } else {
-            renderer.pushFlatHexagon(move_pos, 20, MOVE_COLOR, 0);
-        }
-    }
-
-    renderer.pushFlatHexagon(selection_pos, 20, platform.color.RGBA.from_u32(0x0A0AFF33), 0);
+    renderer.pushFlatHexagon(selection_pos, 20, platform.color.RGBA.from_u32(0xFFFFFF33), 0);
     renderer.flush();
 }
 
