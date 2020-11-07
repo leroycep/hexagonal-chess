@@ -248,7 +248,23 @@ pub fn render(context: *platform.Context, alpha: f64) void {
                 renderer.pushRect(piece_pos.add(vec2f(0, -8)), vec2f(4, 7), color, 0);
                 renderer.pushRect(piece_pos.add(vec2f(-6, -8)), vec2f(4, 7), color, 0);
             },
-            .Queen => {
+            .Pawn => {
+                renderer.pushFlatHexagon(piece_pos.add(vec2f(0, 3)), 7, color, 0);
+                renderer.pushFlatHexagon(piece_pos.add(vec2f(0, -5)), 5, color, 0);
+            },
+            .Bishop => {
+                renderer.pushRect(piece_pos.add(vec2f(0, 5)), vec2f(15, 4), color, 0);
+                renderer.pushRect(piece_pos.add(vec2f(0, -2)), vec2f(6, 15), color, 0);
+            },
+            .Knight => {
+                renderer.pushRect(piece_pos.add(vec2f(0, 0)), vec2f(6, 15), color, 0);
+                renderer.pushTriangle([3]Vec2f{
+                    piece_pos.add(vec2f(-10, -2)),
+                    piece_pos.add(vec2f(3, -2)),
+                    piece_pos.add(vec2f(3, -11)),
+                }, color);
+            },
+            .Queen, .King => {
                 renderer.pushTriangle([3]Vec2f{
                     piece_pos.add(vec2f(5, 5)),
                     piece_pos.add(vec2f(10, 5)),
@@ -274,9 +290,10 @@ pub fn render(context: *platform.Context, alpha: f64) void {
                     piece_pos.add(vec2f(-10, 5)),
                     piece_pos.add(vec2f(-10, -5)),
                 }, color);
-            },
-            else => {
-                renderer.pushRect(piece_pos, vec2f(20, 20), color, 0);
+                if (tile.kind == .King) {
+                    renderer.pushRect(piece_pos.add(vec2f(0, -9)), vec2f(2, 10), color, 0);
+                    renderer.pushRect(piece_pos.add(vec2f(0, -9)), vec2f(10, 2), color, 0);
+                }
             },
         }
     }
