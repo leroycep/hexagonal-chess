@@ -242,6 +242,33 @@ pub fn render(context: *platform.Context, alpha: f64) void {
             .White => platform.color.RGBA.from_u32(0xFFFFFFFF),
         };
         switch (tile.kind) {
+            .Queen => {
+                renderer.pushTriangle([3]Vec2f{
+                    piece_pos.add(vec2f(5, 5)),
+                    piece_pos.add(vec2f(10, 5)),
+                    piece_pos.add(vec2f(10, -5)),
+                }, color);
+                renderer.pushTriangle([3]Vec2f{
+                    piece_pos.add(vec2f(2, 5)),
+                    piece_pos.add(vec2f(6, 5)),
+                    piece_pos.add(vec2f(6, -5)),
+                }, color);
+                renderer.pushTriangle([3]Vec2f{
+                    piece_pos.add(vec2f(-4, 5)),
+                    piece_pos.add(vec2f(0, -9)),
+                    piece_pos.add(vec2f(4, 5)),
+                }, color);
+                renderer.pushTriangle([3]Vec2f{
+                    piece_pos.add(vec2f(-2, 5)),
+                    piece_pos.add(vec2f(-6, 5)),
+                    piece_pos.add(vec2f(-6, -5)),
+                }, color);
+                renderer.pushTriangle([3]Vec2f{
+                    piece_pos.add(vec2f(-5, 5)),
+                    piece_pos.add(vec2f(-10, 5)),
+                    piece_pos.add(vec2f(-10, -5)),
+                }, color);
+            },
             else => {
                 renderer.pushRect(piece_pos, vec2f(20, 20), color, 0);
             },
