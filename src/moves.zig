@@ -105,6 +105,42 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 vec2i(-1, -1),
             }, possible_moves);
         },
+        .Knight => {
+            const knight_possible_moves = [_]Vec2i{
+                vec2i(1, -3),
+                vec2i(2, -3),
+                vec2i(3, -2),
+                vec2i(3, -1),
+                vec2i(2, 1),
+                vec2i(1, 2),
+                vec2i(-1, 3),
+                vec2i(-2, 3),
+                vec2i(-3, 1),
+                vec2i(-3, 2),
+                vec2i(-2, -1),
+                vec2i(-1, -2),
+            };
+
+            for (knight_possible_moves) |move_offset| {
+                const move_location = piece_location.add(move_offset);
+                const tile = board.get(move_location) orelse continue;
+                if (tile) |other_piece| {
+                    if (other_piece.color == piece.color) continue;
+                    // Capture other piece
+                    try possible_moves.append(.{
+                        .end_location = move_location,
+                        .end_piece = piece.withOneMoreMove(),
+                        .captured_piece = move_location,
+                    });
+                } else {
+                    try possible_moves.append(.{
+                        .end_location = move_location,
+                        .end_piece = piece.withOneMoreMove(),
+                        .captured_piece = null,
+                    });
+                }
+            }
+        },
         else => {},
     }
 }
