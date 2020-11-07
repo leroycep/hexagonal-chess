@@ -190,10 +190,21 @@ pub fn render(context: *platform.Context, alpha: f64) void {
 
     for (moves_for_selected_piece.items) |move| {
         const move_pos = flat_hex_to_pixel(20, move.end_location);
-        renderer.pushFlatHexagon(move_pos, 20, platform.Color{ .r = 0x99, .g = 0xFF, .b = 0x99, .a = 0x99 }, 0);
+
+        const MOVE_COLOR = platform.Color.from_u32(0x99FF9999);
+        const CAPTURE_COLOR = platform.Color.from_u32(0xFF999999);
+
+        if (std.meta.eql(move.captured_piece, move.end_location)) {
+            renderer.pushFlatHexagon(move_pos, 20, CAPTURE_COLOR, 0);
+        } else if (move.captured_piece) |captured_piece_location| {
+            renderer.pushFlatHexagon(move_pos, 20, MOVE_COLOR, 0);
+            renderer.pushFlatHexagon(flat_hex_to_pixel(20, captured_piece_location), 20, CAPTURE_COLOR, 0);
+        } else {
+            renderer.pushFlatHexagon(move_pos, 20, MOVE_COLOR, 0);
+        }
     }
 
-    renderer.pushFlatHexagon(selection_pos, 20, platform.Color{ .r = 10, .g = 0xFF, .b = 10, .a = 0x33 }, 0);
+    renderer.pushFlatHexagon(selection_pos, 20, platform.Color.from_u32(0x0A0AFF33), 0);
     renderer.flush();
 }
 
