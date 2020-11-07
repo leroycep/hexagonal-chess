@@ -35,10 +35,11 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
         .Pawn => {
             // TODO: account for promotion tiles
             const possible_attacks = switch (piece.color) {
-                .Black => [2]Vec2i{ vec2i(-1, 0), vec2i(1, -1) },
-                .White => [2]Vec2i{ vec2i(1, 0), vec2i(-1, 1) },
+                .White => [2]Vec2i{ vec2i(-1, 0), vec2i(1, -1) },
+                .Black => [2]Vec2i{ vec2i(1, 0), vec2i(-1, 1) },
             };
-            for (possible_attacks) |attack_location| {
+            for (possible_attacks) |attack_offset| {
+                const attack_location = piece_location.add(attack_offset);
                 const tile = board.get(attack_location);
                 if (tile == null) continue;
                 if (tile.? == null) continue;
