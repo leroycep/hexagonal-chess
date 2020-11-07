@@ -67,6 +67,53 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 .captured_piece = null,
             });
         },
+        .Rook => {
+            try straightLineMoves(board, piece_location, &[6]Vec2i{
+                vec2i(0, -1),
+                vec2i(1, -1),
+                vec2i(1, 0),
+                vec2i(0, 1),
+                vec2i(-1, 1),
+                vec2i(-1, 0),
+            }, possible_moves);
+        },
+        .Bishop => {
+            try straightLineMoves(board, piece_location, &[6]Vec2i{
+                vec2i(1, -2),
+                vec2i(2, -1),
+                vec2i(1, 1),
+                vec2i(-1, 2),
+                vec2i(-2, 1),
+                vec2i(-1, -1),
+            }, possible_moves);
+        },
         else => {},
+    }
+}
+
+fn straightLineMoves(board: Board, piece_location: Vec2i, directions: []const Vec2i, possible_moves: *ArrayList(Move)) !void {
+    const piece = board.get(piece_location) orelse return orelse return;
+
+    for (directions) |direction| {
+        var current_location = piece_location.add(direction);
+        while (board.get(current_location)) |tile| : (current_location = current_location.add(direction)) {
+            if (tile) |other_piece| {
+                if (other_piece.color != piece.color) {
+                    // Capture other piece
+                    try possible_moves.append(.{
+                        .end_location = current_location,
+                        .end_piece = piece.withOneMoreMove(),
+                        .captured_piece = current_location,
+                    });
+                }
+                break;
+            } else {
+                try possible_moves.append(.{
+                    .end_location = current_location,
+                    .end_piece = piece.withOneMoreMove(),
+                    .captured_piece = null,
+                });
+            }
+        }
     }
 }
