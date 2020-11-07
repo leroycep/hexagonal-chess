@@ -143,7 +143,7 @@ pub const Renderer = struct {
         self.translation = vec;
     }
 
-    fn pushVert(self: *Renderer, pos: Vec2f, color: platform.Color) usize {
+    fn pushVert(self: *Renderer, pos: Vec2f, color: platform.color.RGBA) usize {
         const idx = self.vertIdx;
         defer self.vertIdx += 1;
 
@@ -172,7 +172,7 @@ pub const Renderer = struct {
         return (self.vertIdx + numVerts) * NUM_ATTR >= self.verts.len or self.indIdx + numInd >= self.indices.len;
     }
 
-    pub fn pushRect(self: *Renderer, pos: Vec2f, size: Vec2f, color: platform.Color, rot: f32) void {
+    pub fn pushRect(self: *Renderer, pos: Vec2f, size: Vec2f, color: platform.color.RGBA, rot: f32) void {
         if (self.wouldOverflow(4, 6)) {
             self.flush();
         }
@@ -196,7 +196,7 @@ pub const Renderer = struct {
         self.pushElem(bot_left_vert);
     }
 
-    pub fn pushFlatHexagon(self: *Renderer, pos: Vec2f, radius: f32, color: platform.Color, radians: f32) void {
+    pub fn pushFlatHexagon(self: *Renderer, pos: Vec2f, radius: f32, color: platform.color.RGBA, radians: f32) void {
         if (self.wouldOverflow(6, 4 * 3)) {
             self.flush();
         }

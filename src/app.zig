@@ -113,6 +113,8 @@ pub fn onInit(context: *platform.Context) void {
     game_board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
     game_board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
 
+    game_board.set(vec2i(5, 5), Piece{ .kind = .Knight, .color = .White });
+
     moves_for_selected_piece = ArrayList(moves.Move).init(context.alloc);
 }
 
@@ -178,8 +180,8 @@ pub fn render(context: *platform.Context, alpha: f64) void {
 
         const piece_pos = flat_hex_to_pixel(20, res.pos);
         const color = switch (tile.color) {
-            .Black => platform.Color.from_u32(0x000000FF),
-            .White => platform.Color.from_u32(0xFFFFFFFF),
+            .Black => platform.color.RGBA.from_u32(0x000000FF),
+            .White => platform.color.RGBA.from_u32(0xFFFFFFFF),
         };
         switch (tile.kind) {
             else => {
@@ -191,8 +193,8 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     for (moves_for_selected_piece.items) |move| {
         const move_pos = flat_hex_to_pixel(20, move.end_location);
 
-        const MOVE_COLOR = platform.Color.from_u32(0x99FF9999);
-        const CAPTURE_COLOR = platform.Color.from_u32(0xFF999999);
+        const MOVE_COLOR = platform.color.RGBA.from_u32(0x99FF9999);
+        const CAPTURE_COLOR = platform.color.RGBA.from_u32(0xFF999999);
 
         if (std.meta.eql(move.captured_piece, move.end_location)) {
             renderer.pushFlatHexagon(move_pos, 20, CAPTURE_COLOR, 0);
@@ -204,7 +206,7 @@ pub fn render(context: *platform.Context, alpha: f64) void {
         }
     }
 
-    renderer.pushFlatHexagon(selection_pos, 20, platform.Color.from_u32(0x0A0AFF33), 0);
+    renderer.pushFlatHexagon(selection_pos, 20, platform.color.RGBA.from_u32(0x0A0AFF33), 0);
     renderer.flush();
 }
 
@@ -242,15 +244,15 @@ fn genBoardTileBackgroundVAO(allocator: *std.mem.Allocator, shader: platform.GLu
         // Add to color data
         {
             const color = switch (@mod(res.pos.x() + res.pos.y() * Board.SIZE, 3)) {
-                0 => [_]u8{ 130, 102, 68 },
-                1 => [_]u8{ 255, 235, 205 },
-                2 => [_]u8{ 255, 150, 150 },
+                0 => platform.color.RGB.from_hsluv(47.8, 45.4, 24.3),
+                1 => platform.color.RGB.from_hsluv(47.8, 45.4, 31.2),
+                2 => platform.color.RGB.from_hsluv(47.8, 45.4, 39.0),
                 else => unreachable,
             };
 
             var i: usize = 0;
             while (i < 6) : (i += 1) {
-                try colors.appendSlice(&color);
+                try colors.appendSlice(&[_]u8{ color.r, color.g, color.b });
             }
         }
 
