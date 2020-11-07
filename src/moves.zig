@@ -87,6 +87,24 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 vec2i(-1, -1),
             }, possible_moves);
         },
+        .Queen => {
+            try straightLineMoves(board, piece_location, &[12]Vec2i{
+                // Rook moves
+                vec2i(0, -1),
+                vec2i(1, -1),
+                vec2i(1, 0),
+                vec2i(0, 1),
+                vec2i(-1, 1),
+                vec2i(-1, 0),
+                // Bishop moves
+                vec2i(1, -2),
+                vec2i(2, -1),
+                vec2i(1, 1),
+                vec2i(-1, 2),
+                vec2i(-2, 1),
+                vec2i(-1, -1),
+            }, possible_moves);
+        },
         else => {},
     }
 }
