@@ -124,9 +124,6 @@ pub fn onInit(context: *platform.Context) void {
     game_board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
     game_board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
 
-    game_board.set(vec2i(8, 3), Piece{ .kind = .Queen, .color = .Black });
-    game_board.set(vec2i(5, 5), Piece{ .kind = .Knight, .color = .White });
-
     moves_for_selected_piece = ArrayList(moves.Move).init(context.alloc);
 }
 
