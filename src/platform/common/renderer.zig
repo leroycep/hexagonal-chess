@@ -236,6 +236,22 @@ pub const Renderer = struct {
         self.pushElem(hex_verts[5]);
     }
 
+    pub fn pushTriangle(self: *Renderer, points: [3]Vec2f, color: platform.color.RGBA) void {
+        if (self.wouldOverflow(3, 3)) {
+            self.flush();
+        }
+
+        const verts = [_]usize{
+            self.pushVert(points[0], color),
+            self.pushVert(points[1], color),
+            self.pushVert(points[2], color),
+        };
+
+        self.pushElem(verts[0]);
+        self.pushElem(verts[1]);
+        self.pushElem(verts[2]);
+    }
+
     pub fn begin(self: *Renderer) void {
         self.reset();
     }
