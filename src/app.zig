@@ -49,8 +49,8 @@ const FRAG_CODE =
 const COLOR_SELECTED = RGB.from_hsluv(213.4, 92.2, 77.4).withAlpha(0x99);
 const COLOR_MOVE = RGB.from_hsluv(131.4, 55.0, 54.2).withAlpha(0x99);
 const COLOR_CAPTURE = RGB.from_hsluv(12.9, 55.0, 54.2).withAlpha(0x99);
-const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44);//RGB.from_hsluv(148.4, 80, 70).withAlpha(0x44);
-const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77);//RGB.from_hsluv(30, 80, 70).withAlpha(0x44);
+const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44); //RGB.from_hsluv(148.4, 80, 70).withAlpha(0x44);
+const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77); //RGB.from_hsluv(30, 80, 70).withAlpha(0x44);
 
 var shaderProgram: platform.GLuint = undefined;
 var boardBackgroundMesh: Mesh = undefined;
@@ -59,6 +59,7 @@ var renderer: platform.renderer.Renderer = undefined;
 var mouse_pos = vec2f(100, 100);
 var game_board = Board.init(null);
 var translation = vec2f(150, -30);
+var current_player = Piece.Color.White;
 
 var selected_piece: ?Vec2i = null;
 var moves_for_selected_piece: ArrayList(moves.Move) = undefined;
@@ -138,8 +139,26 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
             mouse_pos = move_ev.pos.intToFloat(f32);
         },
         .MouseButtonDown => |click_ev| {
-            moves_for_selected_piece.resize(0) catch unreachable;
             const clicked_tile = pixel_to_flat_hex(20, click_ev.pos.intToFloat(f32).sub(translation));
+
+            for (moves_for_selected_piece.items) |move_for_selected_piece| {
+                if (move_for_selected_piece.piece.color != current_player) break;
+                if (move_for_selected_piece.end_location.eql(clicked_tile)) {
+                    move_for_selected_piece.perform(&game_board);
+
+                    current_player = switch (current_player) {
+                        .White => .Black,
+                        .Black => .White,
+                    };
+
+                    moves_for_selected_piece.resize(0) catch unreachable;
+                    selected_piece = null;
+
+                    return;
+                }
+            }
+
+            moves_for_selected_piece.resize(0) catch unreachable;
 
             if (!std.meta.eql(selected_piece, clicked_tile)) {
                 const tile = game_board.get(clicked_tile);
@@ -202,14 +221,8 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     for (moves_for_selected_piece.items) |move| {
         const move_pos = flat_hex_to_pixel(20, move.end_location);
 
-        const move_color = switch (move.end_piece.color) {
-            .White => COLOR_MOVE,
-            .Black => COLOR_MOVE_OTHER,
-        };
-        const capture_color = switch (move.end_piece.color) {
-            .White => COLOR_CAPTURE,
-            .Black => COLOR_CAPTURE_OTHER,
-        };
+        const move_color = if (move.piece.color == current_player) COLOR_MOVE else COLOR_MOVE_OTHER;
+        const capture_color = if (move.piece.color == current_player) COLOR_CAPTURE else COLOR_CAPTURE_OTHER;
 
         if (std.meta.eql(move.captured_piece, move.end_location)) {
             renderer.pushFlatHexagon(move_pos, 20, capture_color, 0);

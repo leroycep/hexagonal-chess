@@ -7,14 +7,25 @@ const Piece = @import("./piece.zig").Piece;
 const Board = @import("./board.zig").Board(?Piece, 6);
 
 pub const Move = struct {
+    // Where the piece is
+    start_location: Vec2i,
+
     // Where the piece will end up
     end_location: Vec2i,
 
     // The state of the piece after moving ot end location
-    end_piece: Piece,
+    piece: Piece,
 
     // The location of the piece that will be captured, if any
     captured_piece: ?Vec2i,
+
+    pub fn perform(this: @This(), board: *Board) void {
+        if (this.captured_piece) |capture| {
+            board.set(capture, null);
+        }
+        board.set(this.end_location, this.piece.withOneMoreMove());
+        board.set(this.start_location, null);
+    }
 };
 
 pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_moves: *ArrayList(Move)) !void {
@@ -33,8 +44,9 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 if (tile.? == null) continue;
                 if (tile.?.?.color == piece.color) continue;
                 try possible_moves.append(.{
+                    .start_location = piece_location,
                     .end_location = attack_location,
-                    .end_piece = piece.withOneMoreMove(),
+                    .piece = piece,
                     .captured_piece = attack_location,
                 });
             }
@@ -49,8 +61,9 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
             // Pawn can move forward if there is no one in front of them
             if (tile_one_forward == null or tile_one_forward.? != null) return;
             try possible_moves.append(.{
+                .start_location = piece_location,
                 .end_location = one_forward,
-                .end_piece = piece.withOneMoreMove(),
+                .piece = piece,
                 .captured_piece = null,
             });
 
@@ -62,8 +75,9 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
             if (tile_one_forward == null or tile_two_forward.? != null) return;
             // TODO: inform nearby opponent pawns that they can perform 'en passant'
             try possible_moves.append(.{
+                .start_location = piece_location,
                 .end_location = two_forward,
-                .end_piece = piece.withOneMoreMove(),
+                .piece = piece,
                 .captured_piece = null,
             });
         },
@@ -146,14 +160,16 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                     if (other_piece.color == piece.color) continue;
                     // Capture other piece
                     try possible_moves.append(.{
+                        .start_location = piece_location,
                         .end_location = move_location,
-                        .end_piece = piece.withOneMoreMove(),
+                        .piece = piece,
                         .captured_piece = move_location,
                     });
                 } else {
                     try possible_moves.append(.{
+                        .start_location = piece_location,
                         .end_location = move_location,
-                        .end_piece = piece.withOneMoreMove(),
+                        .piece = piece,
                         .captured_piece = null,
                     });
                 }
@@ -176,16 +192,18 @@ fn straightLineMoves(board: Board, piece_location: Vec2i, directions: []const Ve
                 if (other_piece.color != piece.color) {
                     // Capture other piece
                     try possible_moves.append(.{
+                        .start_location = piece_location,
                         .end_location = current_location,
-                        .end_piece = piece.withOneMoreMove(),
+                        .piece = piece,
                         .captured_piece = current_location,
                     });
                 }
                 break;
             } else {
                 try possible_moves.append(.{
+                    .start_location = piece_location,
                     .end_location = current_location,
-                    .end_piece = piece.withOneMoreMove(),
+                    .piece = piece,
                     .captured_piece = null,
                 });
             }
