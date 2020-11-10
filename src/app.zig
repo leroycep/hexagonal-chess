@@ -134,8 +134,18 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
         },
         .MouseMotion => |move_ev| {
             mouse_pos = move_ev.pos.intToFloat(f32);
+
+            if (selected_piece == null) {
+                moves_for_selected_piece.resize(0) catch unreachable;
+
+                const hover_tile = pixel_to_flat_hex(20, move_ev.pos.intToFloat(f32).sub(translation));
+                const tile = game_board.get(hover_tile);
+                if (tile != null and tile.? != null) {
+                    moves.getMovesForPieceAtLocation(game_board, hover_tile, &moves_for_selected_piece) catch unreachable;
+                }
+            }
         },
-        .MouseButtonDown => |click_ev| {
+        .MouseButtonDown => |click_ev| if (click_ev.button == .Left) {
             const clicked_tile = pixel_to_flat_hex(20, click_ev.pos.intToFloat(f32).sub(translation));
 
             for (moves_for_selected_piece.items) |move_for_selected_piece| {
