@@ -38,6 +38,11 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
             return this.tiles[i];
         }
 
+        pub fn getMut(this: *@This(), pos: Vec2i) ?*T {
+            const i = this.idx(pos) orelse return null;
+            return &this.tiles[i];
+        }
+
         pub fn set(this: *@This(), pos: Vec2i, value: T) void {
             const i = this.idx(pos) orelse return;
             this.tiles[i] = value;

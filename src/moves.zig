@@ -19,9 +19,20 @@ pub const Move = struct {
     // The location of the piece that will be captured, if any
     captured_piece: ?Vec2i,
 
+    // Pawns that would be passed and then have an opportunity to perform an en passant
+    passed_pawns: [2]?Vec2i = [_]?Vec2i{null} ** 2,
+
     pub fn perform(this: @This(), board: *Board) void {
         if (this.captured_piece) |capture| {
             board.set(capture, null);
+        }
+        for (this.passed_pawns) |passed_pawn_location_opt| {
+            if (passed_pawn_location_opt) |passed_pawn_location| {
+                const passed_piece_ptr = board.getMut(passed_pawn_location) orelse continue;
+                if (passed_piece_ptr.*) |*passed_piece| {
+                    passed_piece.enPassant = this.end_location;
+                }
+            }
         }
         board.set(this.end_location, this.piece.withOneMoreMove());
         board.set(this.start_location, null);
@@ -39,14 +50,15 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 .Black => [2]Vec2i{ vec2i(1, 0), vec2i(-1, 1) },
             };
             for (possible_attacks) |attack_offset| {
-                const attack_location = piece_location.add(attack_offset);
+                const usual_attack_location = piece_location.add(attack_offset);
+                const attack_location = if (piece.enPassant != null and piece.enPassant.?.x() == usual_attack_location.x()) piece.enPassant.? else usual_attack_location;
                 const tile = board.get(attack_location);
-                if (tile == null) continue;
-                if (tile.? == null) continue;
+                if (tile == null) continue; // tile does not exist
+                if (tile.? == null) continue; // there is no piece on the tile
                 if (tile.?.?.color == piece.color) continue;
                 try possible_moves.append(.{
                     .start_location = piece_location,
-                    .end_location = attack_location,
+                    .end_location = usual_attack_location,
                     .piece = piece,
                     .captured_piece = attack_location,
                 });
@@ -74,13 +86,31 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
             const two_forward = piece_location.add(direction.scalMul(2));
             const tile_two_forward = board.get(two_forward);
             if (tile_one_forward == null or tile_two_forward.? != null) return;
-            // TODO: inform nearby opponent pawns that they can perform 'en passant'
-            try possible_moves.append(.{
+
+            var move = Move{
                 .start_location = piece_location,
                 .end_location = two_forward,
                 .piece = piece,
                 .captured_piece = null,
-            });
+            };
+
+            // The locations that would be passed
+            const en_passant_locations = switch (piece.color) {
+                .White => [2]Vec2i{ vec2i(-1, -1), vec2i(1, -2) },
+                .Black => [2]Vec2i{ vec2i(1, 1), vec2i(-1, 2) },
+            };
+            for (en_passant_locations) |offset, idx| {
+                const pos = piece_location.add(offset);
+                if (board.get(pos)) |en_passant_tile| {
+                    if (en_passant_tile) |en_passant_piece| {
+                        if (en_passant_piece.color != piece.color and en_passant_piece.kind == .Pawn) {
+                            move.passed_pawns[idx] = pos;
+                        }
+                    }
+                }
+            }
+
+            try possible_moves.append(move);
         },
         .Rook => {
             try straightLineMoves(board, piece_location, &[6]Vec2i{

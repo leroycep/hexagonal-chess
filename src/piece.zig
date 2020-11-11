@@ -1,8 +1,12 @@
+const platform = @import("./platform.zig");
+const Vec2i = platform.Vec2i;
+
 pub const Piece = struct {
     kind: Kind,
     color: Color,
 
     numMoves: u32 = 0,
+    enPassant: ?Vec2i = null,
 
     pub const Kind = enum {
         Pawn,
