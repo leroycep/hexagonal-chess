@@ -30,5 +30,9 @@ pub const Piece = struct {
         };
     }
 
-    pub fn updateEndOfTurn(this: *@This(), player: Color) void {}
+    pub fn updateEndOfTurn(this: *@This(), player: Color) void {
+        if (player == this.color) {
+            this.enPassant = null;
+        }
+    }
 };

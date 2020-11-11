@@ -36,6 +36,14 @@ pub const Move = struct {
         }
         board.set(this.end_location, this.piece.withOneMoreMove());
         board.set(this.start_location, null);
+
+        // update each piece (mostly to remove en passant, as it can only be done as a reaction)
+        var board_iter = board.iterator();
+        while (board_iter.next()) |result| {
+            if (result.tile.*) |*piece| {
+                piece.updateEndOfTurn(this.piece.color);
+            }
+        }
     }
 };
 
