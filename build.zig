@@ -5,6 +5,14 @@ const sep_str = std.fs.path.sep_str;
 const Cpu = std.Target.Cpu;
 
 const SITE_DIR = "www";
+const PROTOCOL = std.build.Pkg{
+    .name = "protocol",
+    .path = "./protocol/protocol.zig",
+};
+const CORE = std.build.Pkg{
+    .name = "core",
+    .path = "./core/core.zig",
+};
 
 pub fn build(b: *Builder) void {
     const target = b.standardTargetOptions(.{});
@@ -29,6 +37,14 @@ pub fn build(b: *Builder) void {
     native.setBuildMode(mode);
     native.install();
     b.step("native", "Build native binary").dependOn(&native.step);
+
+    // Server
+    const server = b.addExecutable("hex-chess-server", "server/server.zig");
+    server.addPackage(PROTOCOL);
+    server.setTarget(target);
+    server.setBuildMode(mode);
+    server.install();
+    b.step("server", "Build server binary").dependOn(&server.step);
 
     b.step("run", "Run the native binary").dependOn(&native.run().step);
 
@@ -64,6 +80,7 @@ pub fn build(b: *Builder) void {
 
     const all = b.step("all", "Build all binaries");
     all.dependOn(&native.step);
+    all.dependOn(&server.step);
     all.dependOn(&wasm.step);
     all.dependOn(&tests.step);
 }
