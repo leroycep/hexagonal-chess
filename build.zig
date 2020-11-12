@@ -3,15 +3,17 @@ const fs = std.fs;
 const Builder = std.build.Builder;
 const sep_str = std.fs.path.sep_str;
 const Cpu = std.Target.Cpu;
+const Pkg = std.build.Pkg;
 
 const SITE_DIR = "www";
-const PROTOCOL = std.build.Pkg{
-    .name = "protocol",
-    .path = "./protocol/protocol.zig",
+const UTIL = std.build.Pkg{
+    .name = "util",
+    .path = "./util/util.zig",
 };
 const CORE = std.build.Pkg{
     .name = "core",
     .path = "./core/core.zig",
+    .dependencies = &[_]Pkg{UTIL},
 };
 
 pub fn build(b: *Builder) void {
@@ -30,6 +32,8 @@ pub fn build(b: *Builder) void {
     }
 
     const native = b.addExecutable("hex-chess", "src/main_native.zig");
+    native.addPackage(UTIL);
+    native.addPackage(CORE);
     native.linkSystemLibrary("SDL2");
     native.linkSystemLibrary("epoxy");
     native.linkLibC();
@@ -40,7 +44,7 @@ pub fn build(b: *Builder) void {
 
     // Server
     const server = b.addExecutable("hex-chess-server", "server/server.zig");
-    server.addPackage(PROTOCOL);
+    server.addPackage(CORE);
     server.setTarget(target);
     server.setBuildMode(mode);
     server.install();
@@ -49,6 +53,7 @@ pub fn build(b: *Builder) void {
     b.step("run", "Run the native binary").dependOn(&native.run().step);
 
     const wasm = b.addStaticLibrary("hex-chess-web", "src/main_web.zig");
+    wasm.addPackage(CORE);
     wasm.addPackage(.{
         .name = "zee_alloc",
         .path = "./zee_alloc/src/main.zig",

@@ -1,6 +1,6 @@
 const std = @import("std");
-const platform = @import("./platform.zig");
-const Vec2i = platform.Vec2i;
+const util = @import("util");
+const Vec2i = util.Vec2i;
 
 pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
     return struct {

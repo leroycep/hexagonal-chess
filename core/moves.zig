@@ -1,8 +1,8 @@
 const std = @import("std");
 const ArrayList = std.ArrayList;
-const platform = @import("./platform.zig");
-const Vec2i = platform.Vec2i;
-const vec2i = platform.vec2i;
+const util = @import("util");
+const Vec2i = util.Vec2i;
+const vec2i = util.vec2i;
 const Piece = @import("./piece.zig").Piece;
 const Board = @import("./board.zig").Board(?Piece, 6);
 

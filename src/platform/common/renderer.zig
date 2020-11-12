@@ -1,9 +1,11 @@
 const std = @import("std");
 const common = @import("./common.zig");
 const platform = @import("../../platform.zig");
-const Vec2f = platform.Vec2f;
-const vec2f = platform.vec2f;
-const Rect2f = platform.Rect2f;
+const util = @import("util");
+const Vec2f = util.Vec2f;
+const vec2f = util.vec2f;
+const Rect2f = util.Rect2f;
+const RGBA = util.color.RGBA;
 
 const DEG_TO_RAD = std.math.pi / 180.0;
 
@@ -143,7 +145,7 @@ pub const Renderer = struct {
         self.translation = vec;
     }
 
-    fn pushVert(self: *Renderer, pos: Vec2f, color: platform.color.RGBA) usize {
+    fn pushVert(self: *Renderer, pos: Vec2f, color: RGBA) usize {
         const idx = self.vertIdx;
         defer self.vertIdx += 1;
 
@@ -172,7 +174,7 @@ pub const Renderer = struct {
         return (self.vertIdx + numVerts) * NUM_ATTR >= self.verts.len or self.indIdx + numInd >= self.indices.len;
     }
 
-    pub fn pushRect(self: *Renderer, pos: Vec2f, size: Vec2f, color: platform.color.RGBA, rot: f32) void {
+    pub fn pushRect(self: *Renderer, pos: Vec2f, size: Vec2f, color: RGBA, rot: f32) void {
         if (self.wouldOverflow(4, 6)) {
             self.flush();
         }
@@ -196,7 +198,7 @@ pub const Renderer = struct {
         self.pushElem(bot_left_vert);
     }
 
-    pub fn pushFlatHexagon(self: *Renderer, pos: Vec2f, radius: f32, color: platform.color.RGBA, radians: f32) void {
+    pub fn pushFlatHexagon(self: *Renderer, pos: Vec2f, radius: f32, color: RGBA, radians: f32) void {
         if (self.wouldOverflow(6, 4 * 3)) {
             self.flush();
         }
@@ -236,7 +238,7 @@ pub const Renderer = struct {
         self.pushElem(hex_verts[5]);
     }
 
-    pub fn pushTriangle(self: *Renderer, points: [3]Vec2f, color: platform.color.RGBA) void {
+    pub fn pushTriangle(self: *Renderer, points: [3]Vec2f, color: RGBA) void {
         if (self.wouldOverflow(3, 3)) {
             self.flush();
         }

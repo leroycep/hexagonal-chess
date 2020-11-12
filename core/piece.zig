@@ -1,5 +1,5 @@
-const platform = @import("./platform.zig");
-const Vec2i = platform.Vec2i;
+const util = @import("util");
+const Vec2i = util.Vec2i;
 
 pub const Piece = struct {
     kind: Kind,

@@ -1,18 +1,21 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const platform = @import("platform.zig");
-const Vec3f = platform.Vec3f;
-const Vec2f = platform.Vec2f;
-const vec2f = platform.vec2f;
-const Vec2i = platform.Vec2i;
-const vec2i = platform.vec2i;
+const util = @import("util");
+const Vec3f = util.Vec3f;
+const Vec2f = util.Vec2f;
+const vec2f = util.vec2f;
+const Vec2i = util.Vec2i;
+const vec2i = util.vec2i;
 const pi = std.math.pi;
 const OBB = collision.OBB;
-const Piece = @import("./piece.zig").Piece;
-const Board = @import("./board.zig").Board(?Piece, 6);
-const moves = @import("./moves.zig");
+const core = @import("core");
+const Piece = core.piece.Piece;
+const Board = core.board.Board(?Piece, 6);
+const moves = core.moves;
 const ArrayList = std.ArrayList;
-const RGB = platform.color.RGB;
+const RGB = util.color.RGB;
+const RGBA = util.color.RGBA;
 
 const DEG_TO_RAD = std.math.pi / 180.0;
 
@@ -202,7 +205,7 @@ pub fn render(context: *platform.Context, alpha: f64) void {
         0,                                     0,                                      1, 0,
         0,                                     0,                                      0, 1,
     };
-    const projectionMatrix = platform.mat.mulMat4(scalingMatrix, translationMatrix);
+    const projectionMatrix = util.mat.mulMat4(scalingMatrix, translationMatrix);
 
     platform.glUniformMatrix4fv(projectionMatrixUniform, 1, platform.GL_FALSE, &projectionMatrix);
 
@@ -248,8 +251,8 @@ pub fn render(context: *platform.Context, alpha: f64) void {
 
         const piece_pos = flat_hex_to_pixel(20, res.pos);
         const color = switch (tile.color) {
-            .Black => platform.color.RGBA.from_u32(0x000000FF),
-            .White => platform.color.RGBA.from_u32(0xFFFFFFFF),
+            .Black => RGBA.from_u32(0x000000FF),
+            .White => RGBA.from_u32(0xFFFFFFFF),
         };
         switch (tile.kind) {
             .Rook => {
@@ -308,7 +311,7 @@ pub fn render(context: *platform.Context, alpha: f64) void {
         }
     }
 
-    renderer.pushFlatHexagon(selection_pos, 20, platform.color.RGBA.from_u32(0xFFFFFF33), 0);
+    renderer.pushFlatHexagon(selection_pos, 20, RGBA.from_u32(0xFFFFFF33), 0);
     renderer.flush();
 }
 
@@ -346,9 +349,9 @@ fn genBoardTileBackgroundVAO(allocator: *std.mem.Allocator, shader: platform.GLu
         // Add to color data
         {
             const color = switch (@mod(res.pos.x() + res.pos.y() * Board.SIZE, 3)) {
-                0 => platform.color.RGB.from_hsluv(47.8, 45.4, 24.3),
-                1 => platform.color.RGB.from_hsluv(47.8, 45.4, 31.2),
-                2 => platform.color.RGB.from_hsluv(47.8, 45.4, 39.0),
+                0 => RGB.from_hsluv(47.8, 45.4, 24.3),
+                1 => RGB.from_hsluv(47.8, 45.4, 31.2),
+                2 => RGB.from_hsluv(47.8, 45.4, 39.0),
                 else => unreachable,
             };
 
@@ -434,7 +437,7 @@ fn cube_round(cube: Vec3f) Vec3f {
 }
 
 fn axial_to_cube(axial: Vec2f) Vec3f {
-    return platform.vec3f(
+    return util.vec3f(
         axial.x(),
         -axial.x() - axial.y(),
         axial.y(),

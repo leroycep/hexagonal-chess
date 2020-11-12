@@ -5,7 +5,7 @@ const ArrayList = std.ArrayList;
 const AutoHashMap = std.hash_map.AutoHashMap;
 const Address = std.net.Address;
 const NonblockingStreamServer = @import("./nonblocking_stream_server.zig").NonblockingStreamServer;
-const protocol = @import("protocol");
+const protocol = @import("core").protocol;
 
 const MAX_CLIENTS = 2;
 

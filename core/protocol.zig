@@ -43,3 +43,15 @@ pub const Frames = union(enum) {
         }
     }
 };
+
+// Packets from the server
+pub const ServerPacket = union(enum) {
+    Init: struct {
+        // The color the client will be
+        color: bool,
+    },
+};
+
+// Packets from the client
+pub const ClientPacket = union(enum) {
+};

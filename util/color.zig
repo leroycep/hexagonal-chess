@@ -1,5 +1,5 @@
 const std = @import("std");
-const common = @import("./common.zig");
+const util = @import("./util.zig");
 
 pub const RGBA = struct {
     r: u8,
@@ -54,7 +54,7 @@ pub const RGB = struct {
 
 const KAPPA = 903.29629629629629629630;
 const EPSILON = 0.00885645167903563082;
-const M = [3]common.Vec3f{
+const M = [3]util.Vec3f{
     .{ .v = .{ 3.24096994190452134377, -1.53738317757009345794, -0.49861076029300328366 } },
     .{ .v = .{ -0.96924363628087982613, 1.87596750150772066772, 0.04155505740717561247 } },
     .{ .v = .{ 0.05563007969699360846, -0.20397695888897656435, 1.05697151424287856072 } },
@@ -197,7 +197,7 @@ pub const XYZ = struct {
     z: f32,
 
     pub fn toRGB(this: @This()) RGB {
-        const vec = common.vec3f(this.x, this.y, this.z);
+        const vec = util.vec3f(this.x, this.y, this.z);
         return RGB{
             .r = @floatToInt(u8, from_linear(M[0].dot(vec)) * 255),
             .g = @floatToInt(u8, from_linear(M[1].dot(vec)) * 255),
