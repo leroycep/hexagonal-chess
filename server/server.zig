@@ -4,7 +4,7 @@ const Mutex = std.mutex.Mutex;
 const ArrayList = std.ArrayList;
 const AutoHashMap = std.hash_map.AutoHashMap;
 const Address = std.net.Address;
-const GameServer = @import("./game_server.zig").GameServer;
+const NonblockingStreamServer = @import("./nonblocking_stream_server.zig").NonblockingStreamServer;
 const protocol = @import("protocol");
 
 const MAX_CLIENTS = 2;
@@ -16,7 +16,7 @@ pub fn main() !void {
 
     const localhost = try Address.parseIp("127.0.0.1", 8081);
 
-    var server = GameServer.init(.{ .reuse_address = true });
+    var server = NonblockingStreamServer.init(.{ .reuse_address = true });
     defer server.deinit();
 
     try server.listen(localhost);
@@ -121,7 +121,7 @@ fn broadcast(clients: *AutoHashMap(std.os.fd_t, Client), message: []const u8) vo
 
 const Client = struct {
     alloc: *Allocator,
-    connection: GameServer.Connection,
+    connection: NonblockingStreamServer.Connection,
     frames: protocol.Frames = protocol.Frames.init(),
 
     pub fn handle(this: *@This()) !?[]u8 {

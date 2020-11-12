@@ -4,7 +4,7 @@ const fs = std.fs;
 const os = std.os;
 const mem = std.mem;
 
-pub const GameServer = struct {
+pub const NonblockingStreamServer = struct {
     /// Copied from `Options` on `init`.
     kernel_backlog: u31,
     reuse_address: bool,
@@ -26,8 +26,8 @@ pub const GameServer = struct {
 
     /// After this call succeeds, resources have been acquired and must
     /// be released with `deinit`.
-    pub fn init(options: Options) GameServer {
-        return GameServer{
+    pub fn init(options: Options) NonblockingStreamServer {
+        return NonblockingStreamServer{
             .sockfd = null,
             .kernel_backlog = options.kernel_backlog,
             .reuse_address = options.reuse_address,
@@ -35,13 +35,13 @@ pub const GameServer = struct {
         };
     }
 
-    /// Release all resources. The `GameServer` memory becomes `undefined`.
-    pub fn deinit(self: *GameServer) void {
+    /// Release all resources. The `NonblockingStreamServer` memory becomes `undefined`.
+    pub fn deinit(self: *NonblockingStreamServer) void {
         self.close();
         self.* = undefined;
     }
 
-    pub fn listen(self: *GameServer, address: Address) !void {
+    pub fn listen(self: *NonblockingStreamServer, address: Address) !void {
         const sock_flags = os.SOCK_STREAM | os.SOCK_CLOEXEC | os.SOCK_NONBLOCK;
         const proto = if (address.any.family == os.AF_UNIX) @as(u32, 0) else os.IPPROTO_TCP;
 
@@ -70,7 +70,7 @@ pub const GameServer = struct {
     /// Stop listening. It is still necessary to call `deinit` after stopping listening.
     /// Calling `deinit` will automatically call `close`. It is safe to call `close` when
     /// not listening.
-    pub fn close(self: *GameServer) void {
+    pub fn close(self: *NonblockingStreamServer) void {
         if (self.sockfd) |fd| {
             os.closeSocket(fd);
             self.sockfd = null;
@@ -120,7 +120,7 @@ pub const GameServer = struct {
     };
 
     /// If this function succeeds, the returned `Connection` is a caller-managed resource.
-    pub fn accept(self: *GameServer) AcceptError!Connection {
+    pub fn accept(self: *NonblockingStreamServer) AcceptError!Connection {
         var accepted_addr: Address = undefined;
         var adr_len: os.socklen_t = @sizeOf(Address);
         const fd = try os.accept(self.sockfd.?, &accepted_addr.any, &adr_len, os.SOCK_CLOEXEC | os.SOCK_NONBLOCK);
