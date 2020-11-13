@@ -18,8 +18,9 @@ pub fn update_sockets() void {
 
 pub const FramesSocket = struct {
     alloc: *Allocator,
-    socket: std.fs.File,
+    socket: Socket,
     frames: Frames,
+    status: Status,
 
     onopen: ?fn (*@This()) void = null,
     onmessage: ?fn (*@This(), msg: []const u8) void = null,
@@ -31,7 +32,14 @@ pub const FramesSocket = struct {
     //    data: []const u8,
     //};
 
-    const Error = error{ EndOfStream, OutOfMemory } || std.fs.File.ReadError;
+    const Status = enum {
+        Connecting,
+        Open,
+        Closing,
+        Closed,
+    };
+
+    const Error = error{ EndOfStream, OutOfMemory } || Socket.RecvFromError;
 
     pub fn init(alloc: *Allocator, address: Address) !*@This() {
         for (socket_slots) |*frames_socket_opt| {
@@ -39,11 +47,13 @@ pub const FramesSocket = struct {
 
             const sock_flags = std.os.SOCK_STREAM | std.os.SOCK_NONBLOCK | std.os.SOCK_CLOEXEC;
             const sockfd = try std.os.socket(address.any.family, sock_flags, std.os.IPPROTO_TCP);
-            const socket = std.fs.File{ .handle = sockfd };
+            const socket = Socket{ .handle = sockfd };
             errdefer socket.close();
 
+            var status = Status.Open;
+
             std.os.connect(sockfd, &address.any, address.getOsSockLen()) catch |e| switch (e) {
-                error.WouldBlock => {},
+                error.WouldBlock => status = Status.Connecting,
                 else => |other_err| return other_err,
             };
 
@@ -51,6 +61,7 @@ pub const FramesSocket = struct {
                 .alloc = alloc,
                 .socket = socket,
                 .frames = Frames.init(),
+                .status = status,
             };
 
             return &frames_socket_opt.*.?;
@@ -59,6 +70,7 @@ pub const FramesSocket = struct {
     }
 
     pub fn update(this: *@This()) void {
+        if (this.status == .Closed) return;
         if (this.frames.update(this.alloc, this.socket.reader())) |message_recv_opt| {
             if (message_recv_opt) |message_recv| {
                 defer this.alloc.free(message_recv);
@@ -67,6 +79,10 @@ pub const FramesSocket = struct {
                 }
             }
         } else |err| {
+            switch (err) {
+                error.ConnectionRefused => this.status = .Closed,
+                else => {},
+            }
             if (this.onerror) |onerror| {
                 onerror(this, err);
             } else {
@@ -86,5 +102,43 @@ pub const FramesSocket = struct {
     pub fn send(this: *@This(), msg: []const u8) !void {
         try this.socket.writer().writeIntLittle(u32, @intCast(u32, msg.len));
         try this.socket.writer().writeAll(msg);
+    }
+};
+
+const Socket = struct {
+    handle: std.os.fd_t,
+
+    const RecvFromError = std.os.RecvFromError;
+
+    pub fn recv(this: @This(), buffer: []u8) RecvFromError!usize {
+        return std.os.recv(this.handle, buffer, 0);
+    }
+
+    const SendError = std.os.SendError;
+
+    pub fn send(this: @This(), buffer: []const u8) SendError!usize {
+        return std.os.send(this.handle, buffer, 0);
+    }
+
+    const is_windows = std.Target.current.os.tag == .windows;
+
+    pub fn close(this: @This()) void {
+        if (is_windows) {
+            std.os.windows.CloseHandle(self.handle);
+        } else {
+            std.os.close(this.handle);
+        }
+    }
+
+    pub const Reader = std.io.Reader(Socket, RecvFromError, recv);
+
+    pub fn reader(this: @This()) Reader {
+        return .{ .context = this };
+    }
+
+    pub const Writer = std.io.Writer(Socket, SendError, send);
+
+    pub fn writer(this: @This()) Writer {
+        return .{ .context = this };
     }
 };
