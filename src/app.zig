@@ -311,6 +311,20 @@ pub fn render(context: *platform.Context, alpha: f64) void {
     }
 
     renderer.pushFlatHexagon(selection_pos, 20, RGBA.from_u32(0xFFFFFF33), 0);
+
+    renderer.flush();
+
+    // Set projection matrix
+    renderer.projectionMatrix = scalingMatrix;
+    renderer.pushRect(vec2f(8, 8), vec2f(16, 16), switch (clients_player) {
+        .White => RGBA.from_u32(0xFFFFFFFF),
+        .Black => RGBA.from_u32(0x000000FF),
+    }, 0);
+    renderer.pushRect(vec2f(screen_size.intToFloat(f32).x() - 8, 8), vec2f(16, 16), switch (current_player) {
+        .White => RGBA.from_u32(0xFFFFFFFF),
+        .Black => RGBA.from_u32(0x000000FF),
+    }, 0);
+
     renderer.flush();
 }
 
