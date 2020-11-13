@@ -50,6 +50,10 @@ pub fn build(b: *Builder) void {
     server.install();
     b.step("server", "Build server binary").dependOn(&server.step);
 
+    const test_server = b.addTest("server/server.zig");
+    const test_core = b.addTest("core/core.zig");
+    test_core.addPackage(UTIL);
+
     b.step("run", "Run the native binary").dependOn(&native.run().step);
 
     const wasm = b.addStaticLibrary("hex-chess-web", "src/main_web.zig");
@@ -81,7 +85,11 @@ pub fn build(b: *Builder) void {
     wasm.step.dependOn(&jsInstall.step);
 
     b.step("wasm", "Build WASM binary").dependOn(&wasm.step);
-    b.step("test", "Run tests").dependOn(&tests.step);
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&tests.step);
+    test_step.dependOn(&test_server.step);
+    test_step.dependOn(&test_core.step);
 
     const all = b.step("all", "Build all binaries");
     all.dependOn(&native.step);

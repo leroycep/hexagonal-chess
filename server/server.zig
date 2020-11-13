@@ -86,8 +86,8 @@ pub fn main() !void {
                 };
                 try clients.put(new_connection.file.handle, client);
 
-                try client.sendJSON(protocol.ServerPacket{ .Init = .{ .color = client.color } });
-                try client.sendJSON(protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
+                try client.sendPacket(protocol.ServerPacket{ .Init = .{ .color = client.color } });
+                try client.sendPacket(protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
 
                 std.log.info("{} connected", .{new_connection.address});
             } else if (clients.get(pollfd.fd)) |*client| {
@@ -97,15 +97,15 @@ pub fn main() !void {
 
                     std.log.debug("{}: {}", .{ client.connection.address, json_data });
 
-                    const packet = std.json.parse(core.protocol.ClientPacket, &std.json.TokenStream.init(json_data), .{}) catch |err| switch (err) {
+                    const packet = core.protocol.ClientPacket.parse(json_data) catch |err| switch (err) {
                         else => |other_err| return other_err,
                     };
 
                     switch (packet) {
                         .MovePiece => |move_piece| {
                             try game.move(move_piece.startPos, move_piece.endPos);
-                            broadcastJSON(alloc, &clients, protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
-                            broadcastJSON(alloc, &clients, protocol.ServerPacket{ .TurnChange = game.currentPlayer });
+                            broadcastPacket(alloc, &clients, protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
+                            broadcastPacket(alloc, &clients, protocol.ServerPacket{ .TurnChange = game.currentPlayer });
                         },
                     }
 
@@ -137,10 +137,10 @@ fn broadcast(clients: *AutoHashMap(std.os.fd_t, Client), message: []const u8) vo
     }
 }
 
-fn broadcastJSON(alloc: *Allocator, clients: *AutoHashMap(std.os.fd_t, Client), data: anytype) void {
+fn broadcastPacket(alloc: *Allocator, clients: *AutoHashMap(std.os.fd_t, Client), data: anytype) void {
     var json = ArrayList(u8).init(alloc);
     defer json.deinit();
-    std.json.stringify(data, .{}, json.writer()) catch return;
+    data.stringify(json.writer()) catch return;
 
     broadcast(clients, json.items);
 }
@@ -162,10 +162,10 @@ const Client = struct {
         _ = try writer.write(data);
     }
 
-    pub fn sendJSON(this: *@This(), data: anytype) !void {
+    pub fn sendPacket(this: *@This(), data: anytype) !void {
         var json = ArrayList(u8).init(this.alloc);
         defer json.deinit();
-        try std.json.stringify(data, .{}, json.writer());
+        try data.stringify(json.writer());
 
         try this.send(json.items);
     }
