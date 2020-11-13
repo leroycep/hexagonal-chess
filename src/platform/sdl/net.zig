@@ -84,7 +84,7 @@ pub const FramesSocket = struct {
     }
 
     pub fn send(this: *@This(), msg: []const u8) !void {
-        try this.socket.writer().writeByte(@intCast(u8, msg.len));
-        _ = try this.socket.writer().write(msg);
+        try this.socket.writer().writeIntLittle(u32, @intCast(u32, msg.len));
+        try this.socket.writer().writeAll(msg);
     }
 };

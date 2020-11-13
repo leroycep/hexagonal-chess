@@ -64,6 +64,7 @@ var renderer: platform.renderer.Renderer = undefined;
 var mouse_pos = vec2f(100, 100);
 var game_board = Board.init(null);
 var translation = vec2f(150, -30);
+var clients_player = Piece.Color.White;
 var current_player = Piece.Color.White;
 
 var selected_piece: ?Vec2i = null;
@@ -73,7 +74,6 @@ pub fn onInit(context: *platform.Context) void {
     const localhost = std.net.Address.parseIp("127.0.0.1", 48836) catch unreachable;
     socket = platform.net.FramesSocket.init(context.alloc, localhost) catch unreachable;
     socket.setOnMessage(onSocketMessage);
-    socket.send("Nothing personal") catch unreachable;
 
     var vertShader = platform.glCreateShader(platform.GL_VERTEX_SHADER);
     platform.glShaderSource(vertShader, VERT_CODE);
@@ -95,44 +95,6 @@ pub fn onInit(context: *platform.Context) void {
     projectionMatrixUniform = platform.glGetUniformLocation(shaderProgram, "projectionMatrix");
 
     renderer = platform.renderer.Renderer.init();
-
-    game_board.set(vec2i(1, 4), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(2, 4), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(3, 4), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(4, 4), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(5, 4), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(6, 3), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(7, 2), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(8, 1), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(9, 0), Piece{ .kind = .Pawn, .color = .Black });
-    game_board.set(vec2i(2, 3), Piece{ .kind = .Rook, .color = .Black });
-    game_board.set(vec2i(3, 2), Piece{ .kind = .Knight, .color = .Black });
-    game_board.set(vec2i(4, 1), Piece{ .kind = .Queen, .color = .Black });
-    game_board.set(vec2i(5, 0), Piece{ .kind = .Bishop, .color = .Black });
-    game_board.set(vec2i(5, 1), Piece{ .kind = .Bishop, .color = .Black });
-    game_board.set(vec2i(5, 2), Piece{ .kind = .Bishop, .color = .Black });
-    game_board.set(vec2i(6, 0), Piece{ .kind = .King, .color = .Black });
-    game_board.set(vec2i(7, 0), Piece{ .kind = .Knight, .color = .Black });
-    game_board.set(vec2i(8, 0), Piece{ .kind = .Rook, .color = .Black });
-
-    game_board.set(vec2i(1, 10), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(2, 9), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(3, 8), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(4, 7), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(5, 6), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(6, 6), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(7, 6), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(8, 6), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(9, 6), Piece{ .kind = .Pawn, .color = .White });
-    game_board.set(vec2i(2, 10), Piece{ .kind = .Rook, .color = .White });
-    game_board.set(vec2i(3, 10), Piece{ .kind = .Knight, .color = .White });
-    game_board.set(vec2i(4, 10), Piece{ .kind = .Queen, .color = .White });
-    game_board.set(vec2i(5, 10), Piece{ .kind = .Bishop, .color = .White });
-    game_board.set(vec2i(5, 9), Piece{ .kind = .Bishop, .color = .White });
-    game_board.set(vec2i(5, 8), Piece{ .kind = .Bishop, .color = .White });
-    game_board.set(vec2i(6, 9), Piece{ .kind = .King, .color = .White });
-    game_board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
-    game_board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
 
     moves_for_selected_piece = ArrayList(moves.Move).init(context.alloc);
 }
@@ -160,13 +122,29 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
 
             for (moves_for_selected_piece.items) |move_for_selected_piece| {
                 if (move_for_selected_piece.piece.color != current_player) break;
+                if (move_for_selected_piece.piece.color != clients_player) break;
                 if (move_for_selected_piece.end_location.eql(clicked_tile)) {
-                    move_for_selected_piece.perform(&game_board);
-
-                    current_player = switch (current_player) {
-                        .White => .Black,
-                        .Black => .White,
+                    const packet = core.protocol.ClientPacket{
+                        .MovePiece = .{
+                            .startPos = move_for_selected_piece.start_location,
+                            .endPos = move_for_selected_piece.end_location,
+                        },
                     };
+
+                    var packet_data = ArrayList(u8).init(context.alloc);
+                    defer packet_data.deinit();
+
+                    packet.stringify(packet_data.writer()) catch unreachable;
+
+                    socket.send(packet_data.items) catch unreachable;
+                    std.log.debug("Sending packet: {}", .{packet_data.items});
+
+                    //move_for_selected_piece.perform(&game_board);
+
+                    //current_player = switch (current_player) {
+                    //    .White => .Black,
+                    //    .Black => .White,
+                    //};
 
                     moves_for_selected_piece.resize(0) catch unreachable;
                     selected_piece = null;
@@ -195,6 +173,16 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
 
 pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8) void {
     std.log.info("Received message {}", .{message});
+    const packet = core.protocol.ServerPacket.parse(message) catch |e| {
+        std.log.err("Could not read packet: {}", .{e});
+        return;
+    };
+    switch (packet) {
+        .Init => |init_data| clients_player = init_data.color,
+        .BoardUpdate => |board_update| game_board = Board.deserialize(board_update),
+        .TurnChange => |turn_change| current_player = turn_change,
+        else => {},
+    }
 }
 
 pub fn update(context: *platform.Context, current_time: f64, delta: f64) void {}

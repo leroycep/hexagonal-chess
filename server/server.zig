@@ -88,6 +88,7 @@ pub fn main() !void {
 
                 try client.sendPacket(protocol.ServerPacket{ .Init = .{ .color = client.color } });
                 try client.sendPacket(protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
+                try client.sendPacket(protocol.ServerPacket{ .TurnChange = game.currentPlayer });
 
                 std.log.info("{} connected", .{new_connection.address});
             } else if (clients.get(pollfd.fd)) |*client| {

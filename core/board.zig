@@ -107,7 +107,7 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
             var i: usize = 0;
             var board_iter = this.iterator();
             while (board_iter.next()) |tile| : (i += 1) {
-                this.tile.* = array[i];
+                tile.tile.* = array[i];
             }
 
             return this;
