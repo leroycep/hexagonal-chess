@@ -5,7 +5,8 @@ const ArrayList = std.ArrayList;
 const AutoHashMap = std.hash_map.AutoHashMap;
 const Address = std.net.Address;
 const NonblockingStreamServer = @import("./nonblocking_stream_server.zig").NonblockingStreamServer;
-const protocol = @import("core").protocol;
+const core = @import("core");
+const protocol = core.protocol;
 
 const MAX_CLIENTS = 2;
 
@@ -42,6 +43,13 @@ pub fn main() !void {
         .revents = undefined,
     });
 
+    var game = core.game.Game.init(alloc);
+
+    var unassigned_colors = ArrayList(core.piece.Piece.Color).init(alloc);
+    defer unassigned_colors.deinit();
+    try unassigned_colors.append(.Black);
+    try unassigned_colors.append(.White);
+
     var running = true;
     var next_id: u32 = 0;
 
@@ -60,7 +68,7 @@ pub fn main() !void {
                     else => |oe| return oe,
                 };
 
-                if (pollfds.items.len >= MAX_CLIENTS + 1) {
+                if (unassigned_colors.items.len == 0) {
                     new_connection.file.close();
                     continue;
                 }
@@ -71,29 +79,41 @@ pub fn main() !void {
                     .revents = undefined,
                 });
 
-                try clients.put(new_connection.file.handle, .{ .alloc = alloc, .connection = new_connection });
+                var client = Client{
+                    .alloc = alloc,
+                    .connection = new_connection,
+                    .color = unassigned_colors.pop(),
+                };
+                try clients.put(new_connection.file.handle, client);
+
+                try client.sendJSON(protocol.ServerPacket{ .Init = .{ .color = client.color } });
+                try client.sendJSON(protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
 
                 std.log.info("{} connected", .{new_connection.address});
             } else if (clients.get(pollfd.fd)) |*client| {
-                if (client.handle()) |message_opt| {
-                    const message = message_opt orelse continue;
-                    defer alloc.free(message);
+                if (client.handle()) |json_data_opt| {
+                    const json_data = json_data_opt orelse continue;
+                    defer alloc.free(json_data);
 
-                    if (std.mem.eql(u8, "exit", message)) {
-                        disconnectClient(&pollfds, &clients, pollfd_idx);
-                        break;
+                    std.log.debug("{}: {}", .{ client.connection.address, json_data });
+
+                    const packet = std.json.parse(core.protocol.ClientPacket, &std.json.TokenStream.init(json_data), .{}) catch |err| switch (err) {
+                        else => |other_err| return other_err,
+                    };
+
+                    switch (packet) {
+                        .MovePiece => |move_piece| {
+                            try game.move(move_piece.startPos, move_piece.endPos);
+                            broadcastJSON(alloc, &clients, protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
+                            broadcastJSON(alloc, &clients, protocol.ServerPacket{ .TurnChange = game.currentPlayer });
+                        },
                     }
-                    if (std.mem.eql(u8, "stop", message)) {
-                        running = false;
-                        break;
-                    }
 
-                    std.log.info("{}: {}", .{ client.connection.address, message });
-
-                    broadcast(&clients, message);
+                    std.log.debug("{} parsed: {}", .{ client.connection.address, packet });
                 } else |err| switch (err) {
                     error.EndOfStream => {
                         disconnectClient(&pollfds, &clients, pollfd_idx);
+                        try unassigned_colors.append(client.color);
                         break;
                     },
                     else => |other_err| return other_err,
@@ -113,19 +133,40 @@ fn disconnectClient(pollfds: *ArrayList(std.os.pollfd), clients: *AutoHashMap(st
 fn broadcast(clients: *AutoHashMap(std.os.fd_t, Client), message: []const u8) void {
     var clients_iter = clients.iterator();
     while (clients_iter.next()) |client| {
-        const writer = client.value.connection.file.writer();
-        _ = writer.writeByte(@intCast(u8, message.len)) catch continue;
-        _ = writer.write(message) catch continue;
+        client.value.send(message) catch continue;
     }
+}
+
+fn broadcastJSON(alloc: *Allocator, clients: *AutoHashMap(std.os.fd_t, Client), data: anytype) void {
+    var json = ArrayList(u8).init(alloc);
+    defer json.deinit();
+    std.json.stringify(data, .{}, json.writer()) catch return;
+
+    broadcast(clients, json.items);
 }
 
 const Client = struct {
     alloc: *Allocator,
     connection: NonblockingStreamServer.Connection,
     frames: protocol.Frames = protocol.Frames.init(),
+    color: core.piece.Piece.Color,
 
     pub fn handle(this: *@This()) !?[]u8 {
         const reader = this.connection.file.reader();
         return this.frames.update(this.alloc, reader);
+    }
+
+    pub fn send(this: *@This(), data: []const u8) !void {
+        const writer = this.connection.file.writer();
+        try writer.writeIntLittle(u32, @intCast(u32, data.len));
+        _ = try writer.write(data);
+    }
+
+    pub fn sendJSON(this: *@This(), data: anytype) !void {
+        var json = ArrayList(u8).init(this.alloc);
+        defer json.deinit();
+        try std.json.stringify(data, .{}, json.writer());
+
+        try this.send(json.items);
     }
 };

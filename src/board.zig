@@ -1,6 +1,6 @@
 const std = @import("std");
-const util = @import("util");
-const Vec2i = util.Vec2i;
+const platform = @import("./platform.zig");
+const Vec2i = platform.Vec2i;
 
 pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
     return struct {
@@ -86,31 +86,5 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
                 }
             }
         };
-
-        pub const Serialized = [NUM_TILES]T;
-
-        pub fn serialize(this: *@This()) Serialized {
-            var res: [NUM_TILES]T = undefined;
-
-            var i: usize = 0;
-            var board_iter = this.iterator();
-            while (board_iter.next()) |tile| : (i += 1) {
-                res[i] = tile.tile.*;
-            }
-
-            return res;
-        }
-
-        pub fn deserialize(array: Serialized) @This() {
-            var this: @This() = undefined;
-
-            var i: usize = 0;
-            var board_iter = this.iterator();
-            while (board_iter.next()) |tile| : (i += 1) {
-                this.tile.* = array[i];
-            }
-
-            return this;
-        }
     };
 }

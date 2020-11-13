@@ -1,3 +1,4 @@
+const std = @import("std");
 const util = @import("util");
 const Vec2i = util.Vec2i;
 
@@ -8,18 +9,38 @@ pub const Piece = struct {
     numMoves: u32 = 0,
     enPassant: ?Vec2i = null,
 
-    pub const Kind = enum {
+    pub const Kind = enum(u8) {
         Pawn,
         Rook,
         Knight,
         Bishop,
         Queen,
         King,
+
+        pub fn jsonStringify(this: @This(), options: std.json.StringifyOptions, writer: anytype) !void {
+            const text = switch (this) {
+                .Pawn => "Pawn",
+                .Rook => "Rook",
+                .Knight => "Knight",
+                .Bishop => "Bishop",
+                .Queen => "Queen",
+                .King => "King",
+            };
+            try std.json.stringify(text, options, writer);
+        }
     };
 
-    pub const Color = enum {
+    pub const Color = enum(u1) {
         Black,
         White,
+
+        pub fn jsonStringify(this: @This(), options: std.json.StringifyOptions, writer: anytype) !void {
+            const text = switch (this) {
+                .Black => "Black",
+                .White => "White",
+            };
+            try std.json.stringify(text, options, writer);
+        }
     };
 
     pub fn withOneMoreMove(this: @This()) @This() {
