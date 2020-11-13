@@ -8,6 +8,8 @@ const builtin = @import("builtin");
 usingnamespace @import("../common/common.zig");
 pub usingnamespace @import("./gl.zig");
 
+pub const net = @import("./net.zig");
+
 pub const warn = std.debug.warn;
 
 pub const Context = struct {

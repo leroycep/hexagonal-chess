@@ -55,6 +55,8 @@ const COLOR_CAPTURE = RGB.from_hsluv(12.9, 55.0, 54.2).withAlpha(0x99);
 const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44); //RGB.from_hsluv(148.4, 80, 70).withAlpha(0x44);
 const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77); //RGB.from_hsluv(30, 80, 70).withAlpha(0x44);
 
+var socket: *platform.net.FramesSocket = undefined;
+
 var shaderProgram: platform.GLuint = undefined;
 var boardBackgroundMesh: Mesh = undefined;
 var projectionMatrixUniform: platform.GLint = undefined;
@@ -68,6 +70,11 @@ var selected_piece: ?Vec2i = null;
 var moves_for_selected_piece: ArrayList(moves.Move) = undefined;
 
 pub fn onInit(context: *platform.Context) void {
+    const localhost = std.net.Address.parseIp("127.0.0.1", 48836) catch unreachable;
+    socket = platform.net.FramesSocket.init(context.alloc, localhost) catch unreachable;
+    socket.setOnMessage(onSocketMessage);
+    socket.send("Nothing personal") catch unreachable;
+
     var vertShader = platform.glCreateShader(platform.GL_VERTEX_SHADER);
     platform.glShaderSource(vertShader, VERT_CODE);
     platform.glCompileShader(vertShader);
@@ -184,6 +191,10 @@ pub fn onEvent(context: *platform.Context, event: platform.Event) void {
         },
         else => {},
     }
+}
+
+pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8) void {
+    std.log.info("Received message {}", .{message});
 }
 
 pub fn update(context: *platform.Context, current_time: f64, delta: f64) void {}

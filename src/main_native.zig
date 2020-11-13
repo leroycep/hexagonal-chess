@@ -9,8 +9,6 @@ const log = std.log.scoped(.PlatformNative);
 pub fn main() !void {
     const alloc = std.heap.c_allocator;
 
-    log.info("Hello, world", .{});
-
     var context = try platform.init(alloc, constants.APP_NAME, 640, 480);
     defer context.deinit();
 
@@ -27,6 +25,8 @@ pub fn main() !void {
     var accumulator: f64 = 0.0;
 
     while (platform.shouldQuit != platform.QUIT) {
+        platform.net.update_sockets();
+
         while (platform.pollEvent()) |event| {
             app.onEvent(&context, event);
         }
