@@ -72,7 +72,11 @@ pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8)
     };
     switch (packet) {
         .Init => |init_data| clients_player = init_data.color,
-        .BoardUpdate => |board_update| game_board = Board.deserialize(board_update),
+        .BoardUpdate => |board_update| {
+            game_board = Board.deserialize(board_update);
+            pos_selected = null;
+            moves_shown.shrinkRetainingCapacity(0);
+        },
         .TurnChange => |turn_change| current_player = turn_change,
         else => {},
     }
@@ -98,7 +102,33 @@ fn update() !void {
     pos_hovered = new_pos_hovered;
 
     if (gamekit.input.mousePressed(.left)) {
-        moves_shown.resize(0) catch unreachable;
+        for (moves_shown.items) |shown_move| {
+            if (shown_move.piece.color != current_player) break;
+            if (shown_move.piece.color != clients_player) break;
+            if (shown_move.end_location.eql(pos_hovered)) {
+                const packet = core.protocol.ClientPacket{
+                    .MovePiece = .{
+                        .startPos = shown_move.start_location,
+                        .endPos = shown_move.end_location,
+                    },
+                };
+
+                var packet_data = ArrayList(u8).init(allocator);
+                defer packet_data.deinit();
+
+                packet.stringify(packet_data.writer()) catch unreachable;
+
+                socket.send(packet_data.items) catch unreachable;
+                std.log.debug("Sending packet: {}", .{packet_data.items});
+
+                moves_shown.shrinkRetainingCapacity(0);
+                pos_selected = null;
+
+                return;
+            }
+        }
+
+        moves_shown.shrinkRetainingCapacity(0);
 
         if (!std.meta.eql(pos_selected, pos_hovered)) {
             const tile = game_board.get(pos_hovered);
