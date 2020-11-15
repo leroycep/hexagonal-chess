@@ -14,7 +14,7 @@ pub const Game = struct {
     pub fn init(alloc: *Allocator) @This() {
         var board = core.Board.init(null);
 
-        setupChess(&this.board);
+        setupChess(&board);
 
         return .{
             .alloc = alloc,

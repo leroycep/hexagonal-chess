@@ -5,6 +5,7 @@ const math = gamekit.math;
 const core = @import("core");
 const Board = core.Board;
 const util = @import("util");
+const platform = @import("./platform.zig");
 
 const ArrayList = std.ArrayList;
 const Vec2i = util.Vec2i;
@@ -23,6 +24,8 @@ const COLOR_CAPTURE = RGB.from_hsluv(12.9, 55.0, 54.2).withAlpha(0x99);
 const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44);
 const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77);
 
+var socket: *platform.net.FramesSocket = undefined;
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = &gpa.allocator;
 var batcher: gfx.Batcher = undefined;
@@ -33,6 +36,7 @@ var pos_hovered = vec2i(5, 5);
 var pos_selected: ?Vec2i = null;
 var moves_shown: ArrayList(core.moves.Move) = undefined;
 var current_player = core.piece.Piece.Color.White;
+var clients_player = core.piece.Piece.Color.White;
 
 pub fn main() !void {
     try gamekit.run(.{
@@ -45,19 +49,38 @@ pub fn main() !void {
 }
 
 fn init() !void {
+    const localhost = try std.net.Address.parseIp("127.0.0.1", 48836);
+    socket = try platform.net.FramesSocket.init(allocator, localhost);
+    socket.setOnMessage(onSocketMessage);
+
     batcher = gfx.Batcher.init(allocator, max_sprites_per_batch);
 
     loadTextures();
 
     moves_shown = ArrayList(core.moves.Move).init(allocator);
-    core.game.setupChess(&game_board);
 }
 
 fn shutdown() !void {
     _ = gpa.deinit();
 }
 
+pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8) void {
+    std.log.info("Received message {}", .{message});
+    const packet = core.protocol.ServerPacket.parse(message) catch |e| {
+        std.log.err("Could not read packet: {}", .{e});
+        return;
+    };
+    switch (packet) {
+        .Init => |init_data| clients_player = init_data.color,
+        .BoardUpdate => |board_update| game_board = Board.deserialize(board_update),
+        .TurnChange => |turn_change| current_player = turn_change,
+        else => {},
+    }
+}
+
 fn update() !void {
+    platform.net.update_sockets();
+
     const center_tile_pos = flat_hex_to_pixel(HEX_RADIUS, vec2i(5, 5));
     camera_offset = vec2f(320, 240).sub(center_tile_pos);
 
