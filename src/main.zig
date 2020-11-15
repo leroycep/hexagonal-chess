@@ -37,6 +37,7 @@ var pos_selected: ?Vec2i = null;
 var moves_shown: ArrayList(core.moves.Move) = undefined;
 var current_player = core.piece.Piece.Color.White;
 var clients_player = core.piece.Piece.Color.White;
+var font: BitmapFont = undefined;
 
 pub fn main() !void {
     try gamekit.run(.{
@@ -56,6 +57,7 @@ fn init() !void {
     batcher = gfx.Batcher.init(allocator, max_sprites_per_batch);
 
     loadTextures();
+    font = BitmapFont.initFromFile(allocator, "assets/PressStart2P_16.fnt") catch unreachable;
 
     moves_shown = ArrayList(core.moves.Move).init(allocator);
 }
@@ -213,9 +215,7 @@ fn render() !void {
     batcher.end();
     gfx.endPass();
 
-    gfx.beginPass(.{
-        .color_action = .load
-    });
+    gfx.beginPass(.{ .color_action = .load });
     batcher.begin();
     sprites[9].draw(&batcher, vec2f(620, 460), switch (clients_player) {
         .White => 0xFFFFFFFF,
@@ -225,6 +225,7 @@ fn render() !void {
         .White => 0xFFFFFFFF,
         .Black => 0xFF000000,
     });
+    font.drawText(&batcher, "Hello, world!", vec2f(320, 240), math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF));
     batcher.end();
     gfx.endPass();
 }
@@ -235,7 +236,7 @@ const Sprite = struct {
 
     pub fn draw(this: @This(), drawbatcher: *gfx.Batcher, pos: Vec2f, color: u32) void {
         const dpos = pos.sub(this.offset);
-        batcher.drawTex(math.Vec2{ .x = dpos.x(), .y = dpos.y() }, color, this.texture);
+        drawbatcher.drawTex(math.Vec2{ .x = dpos.x(), .y = dpos.y() }, color, this.texture);
     }
 };
 
@@ -331,3 +332,160 @@ fn axial_to_cube(axial: Vec2f) Vec3f {
 fn cube_to_axial(cube: Vec3f) Vec2f {
     return vec2f(cube.x(), cube.z());
 }
+
+const BitmapFont = struct {
+    pages: []gfx.Texture,
+    glyphs: std.AutoHashMap(u32, Glyph),
+    lineHeight: f32,
+    scale: Vec2f,
+
+    const Glyph = struct {
+        page: u32,
+        pos: Vec2f,
+        size: Vec2f,
+        offset: Vec2f,
+        xadvance: f32,
+    };
+
+    fn initFromFile(alloc: *std.mem.Allocator, filename: [:0]const u8) !@This() {
+        const contents = try gamekit.utils.fs.read(alloc, filename);
+        defer alloc.free(contents);
+
+        const base_path = std.fs.path.dirname(filename) orelse "./";
+
+        var pages = ArrayList(gfx.Texture).init(alloc);
+        var glyphs = std.AutoHashMap(u32, Glyph).init(alloc);
+        var lineHeight: f32 = undefined;
+        var scaleW: f32 = 0;
+        var scaleH: f32 = 0;
+
+        var line_iter = std.mem.tokenize(contents, "\n\r");
+        while (line_iter.next()) |line| {
+            var pair_iter = std.mem.tokenize(line, " \t");
+
+            const kind = pair_iter.next() orelse continue;
+
+            if (std.mem.eql(u8, "char", kind)) {
+                var id: ?u32 = null;
+                var x: f32 = undefined;
+                var y: f32 = undefined;
+                var width: f32 = undefined;
+                var height: f32 = undefined;
+                var xoffset: f32 = undefined;
+                var yoffset: f32 = undefined;
+                var xadvance: f32 = undefined;
+                var page: u32 = undefined;
+
+                while (pair_iter.next()) |pair| {
+                    var kv_iter = std.mem.split(pair, "=");
+                    const key = kv_iter.next().?;
+                    const value = kv_iter.rest();
+
+                    if (std.mem.eql(u8, "id", key)) {
+                        id = try std.fmt.parseInt(u32, value, 10);
+                    } else if (std.mem.eql(u8, "x", key)) {
+                        x = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "y", key)) {
+                        y = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "width", key)) {
+                        width = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "height", key)) {
+                        height = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "xoffset", key)) {
+                        xoffset = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "yoffset", key)) {
+                        yoffset = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "xadvance", key)) {
+                        xadvance = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "page", key)) {
+                        page = try std.fmt.parseInt(u32, value, 10);
+                    } else if (std.mem.eql(u8, "chnl", key)) {
+                        // TODO
+                    } else {
+                        std.log.warn("unknown pair for {} kind: {}", .{ kind, pair });
+                    }
+                }
+
+                if (id == null) {
+                    return error.InvalidFormat;
+                }
+
+                try glyphs.put(id.?, .{
+                    .page = page,
+                    .pos = vec2f(x, y),
+                    .size = vec2f(width, height),
+                    .offset = vec2f(xoffset, yoffset),
+                    .xadvance = xadvance,
+                });
+            } else if (std.mem.eql(u8, "common", kind)) {
+                while (pair_iter.next()) |pair| {
+                    var kv_iter = std.mem.split(pair, "=");
+                    const key = kv_iter.next().?;
+                    const value = kv_iter.rest();
+
+                    if (std.mem.eql(u8, "lineHeight", key)) {
+                        lineHeight = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "scaleW", key)) {
+                        scaleW = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "scaleH", key)) {
+                        scaleH = try std.fmt.parseFloat(f32, value);
+                    } else {
+                        std.log.warn("unknown pair for {} kind: {}", .{ kind, pair });
+                    }
+                }
+            } else if (std.mem.eql(u8, "page", kind)) {
+                var id: u32 = @intCast(u32, pages.items.len);
+                var page_filename = try alloc.alloc(u8, 0);
+                defer alloc.free(page_filename);
+
+                while (pair_iter.next()) |pair| {
+                    var kv_iter = std.mem.split(pair, "=");
+                    const key = kv_iter.next().?;
+                    const value = kv_iter.rest();
+
+                    if (std.mem.eql(u8, "id", key)) {
+                        id = try std.fmt.parseInt(u32, value, 10);
+                    } else if (std.mem.eql(u8, "file", key)) {
+                        const trimmed = std.mem.trim(u8, value, "\"");
+                        page_filename = try std.fs.path.join(alloc, &[_][]const u8{ base_path, trimmed });
+                    } else {
+                        std.log.warn("unknown pair for {} kind: {}", .{ kind, pair });
+                    }
+                }
+
+                try pages.resize(id + 1);
+                pages.items[id] = try gfx.Texture.initFromFile(allocator, page_filename, .nearest);
+            }
+        }
+
+        return @This(){
+            .pages = pages.toOwnedSlice(),
+            .glyphs = glyphs,
+            .lineHeight = lineHeight,
+            .scale = vec2f(scaleW, scaleH),
+        };
+    }
+
+    pub fn deinit(this: *@This()) void {
+        this.glyphs.allocator.free(this.pages);
+        this.glyphs.deinit();
+    }
+
+    pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, color: math.Color) void {
+        var x = pos.x();
+        var y = pos.y();
+        for (text) |char| {
+            if (this.glyphs.get(char)) |glyph| {
+                const texture = this.pages[glyph.page];
+                const quad = math.Quad.init(glyph.pos.x(), glyph.pos.y(), glyph.size.x(), glyph.size.y(), this.scale.x(), this.scale.y());
+                const mat = math.Mat32.initTransform(.{
+                    .x = x + glyph.offset.x(),
+                    .y = y + glyph.size.y() + glyph.offset.y(),
+                });
+                drawbatcher.draw(texture, quad, mat, color);
+
+                x += glyph.xadvance;
+            }
+        }
+    }
+};
