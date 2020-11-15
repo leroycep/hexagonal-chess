@@ -9,6 +9,7 @@ const Vec2i = util.Vec2i;
 const vec2i = util.vec2i;
 const Vec2f = util.Vec2f;
 const vec2f = util.vec2f;
+const Vec3f = util.Vec3f;
 const RGB = util.color.RGB;
 
 const total_textures = 9;
@@ -20,11 +21,14 @@ const allocator = &gpa.allocator;
 var batcher: gfx.Batcher = undefined;
 var textures: []gfx.Texture = undefined;
 var game_board = Board.init(null);
+var camera_offset = vec2f(0, 0);
+var selected = vec2i(5, 5);
 
 pub fn main() !void {
     try gamekit.run(.{
         .init = init,
         .shutdown = shutdown,
+        .update = update,
         .render = render,
         .window = .{ .resizable = false, .width = 640, .height = 480 },
     });
@@ -42,15 +46,21 @@ fn shutdown() !void {
     _ = gpa.deinit();
 }
 
-fn render() !void {
+fn update() !void {
     const center_tile_pos = flat_hex_to_pixel(HEX_RADIUS, vec2i(5, 5));
-    const offset = vec2f(320, 240).sub(center_tile_pos);
+    camera_offset = vec2f(320, 240).sub(center_tile_pos);
 
+    const gk_mousePos = gamekit.input.mousePos();
+    const mousePos = vec2f(gk_mousePos.x, 480 - gk_mousePos.y);
+    selected = pixel_to_flat_hex(HEX_RADIUS, mousePos.sub(camera_offset));
+}
+
+fn render() !void {
     gfx.beginPass(.{
         .color = math.Color.fromRgbBytes(0x88, 0x88, 0x88),
         .trans_mat = math.Mat32.initTransform(.{
-            .x = offset.x(),
-            .y = offset.y(),
+            .x = camera_offset.x(),
+            .y = camera_offset.y(),
         }),
     });
     batcher.begin();
@@ -61,7 +71,9 @@ fn render() !void {
 
         const texture = textures[@intCast(usize, @mod(res.pos.x() + res.pos.y() * Board.SIZE, 3))];
 
-        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, 0xFFFFFFFF, texture);
+        const color: u32 = if (res.pos.eql(selected)) 0xFF888888 else 0xFFFFFFFF;
+
+        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, color, texture);
     }
 
     board_iter = game_board.iterator();
