@@ -87,11 +87,11 @@ fn update() !void {
     net.update_sockets();
 
     const center_tile_pos = flat_hex_to_pixel(HEX_RADIUS, vec2i(5, 5));
-    camera_offset = vec2f(320, 240).sub(center_tile_pos);
+    camera_offset = vec2f(320, 240).subv(center_tile_pos);
 
     const gk_mousePos = gamekit.input.mousePos();
     const mousePos = vec2f(gk_mousePos.x, 480 - gk_mousePos.y);
-    const new_pos_hovered = pixel_to_flat_hex(HEX_RADIUS, mousePos.sub(camera_offset));
+    const new_pos_hovered = pixel_to_flat_hex(HEX_RADIUS, mousePos.subv(camera_offset));
     if (!new_pos_hovered.eql(pos_hovered) and pos_selected == null) {
         moves_shown.resize(0) catch unreachable;
 
@@ -149,8 +149,8 @@ fn render() !void {
     gfx.beginPass(.{
         .color = math.Color.fromRgbBytes(0x88, 0x88, 0x88),
         .trans_mat = math.Mat32.initTransform(.{
-            .x = camera_offset.x(),
-            .y = camera_offset.y(),
+            .x = camera_offset.x,
+            .y = camera_offset.y,
         }),
     });
     batcher.begin();
@@ -159,7 +159,7 @@ fn render() !void {
     while (board_iter.next()) |res| {
         const pcoords = flat_hex_to_pixel(HEX_RADIUS, res.pos);
 
-        const sprite = sprites[@intCast(usize, @mod(res.pos.x() + res.pos.y() * Board.SIZE, 3))];
+        const sprite = sprites[@intCast(usize, @mod(res.pos.x + res.pos.y * Board.SIZE, 3))];
 
         sprite.draw(&batcher, pcoords, 0xFFFFFFFF);
 
@@ -245,8 +245,8 @@ const Sprite = struct {
     offset: Vec2f,
 
     pub fn draw(this: @This(), drawbatcher: *gfx.Batcher, pos: Vec2f, color: u32) void {
-        const dpos = pos.sub(this.offset);
-        drawbatcher.drawTex(math.Vec2{ .x = dpos.x(), .y = dpos.y() }, color, this.texture);
+        const dpos = pos.subv(this.offset);
+        drawbatcher.drawTex(math.Vec2{ .x = dpos.x, .y = dpos.y }, color, this.texture);
     }
 };
 
@@ -296,14 +296,14 @@ fn loadTextures() void {
 }
 
 fn flat_hex_to_pixel(size: f32, hex: Vec2i) Vec2f {
-    var x = size * (3.0 / 2.0 * @intToFloat(f32, hex.v[0]));
-    var y = size * (std.math.sqrt(@as(f32, 3.0)) / 2.0 * @intToFloat(f32, hex.v[0]) + std.math.sqrt(@as(f32, 3.0)) * @intToFloat(f32, hex.v[1]));
+    var x = size * (3.0 / 2.0 * @intToFloat(f32, hex.x));
+    var y = size * (std.math.sqrt(@as(f32, 3.0)) / 2.0 * @intToFloat(f32, hex.x) + std.math.sqrt(@as(f32, 3.0)) * @intToFloat(f32, hex.y));
     return Vec2f.init(x, y);
 }
 
 fn pixel_to_flat_hex(size: f32, pixel: Vec2f) Vec2i {
-    var q = (2.0 / 3.0 * pixel.v[0]) / size;
-    var r = (-1.0 / 3.0 * pixel.v[0] + std.math.sqrt(@as(f32, 3)) / 3 * pixel.v[1]) / size;
+    var q = (2.0 / 3.0 * pixel.x) / size;
+    var r = (-1.0 / 3.0 * pixel.x + std.math.sqrt(@as(f32, 3)) / 3 * pixel.y) / size;
     return hex_round(Vec2f.init(q, r)).floatToInt(i32);
 }
 
@@ -312,13 +312,13 @@ fn hex_round(hex: Vec2f) Vec2f {
 }
 
 fn cube_round(cube: Vec3f) Vec3f {
-    var rx = std.math.round(cube.x());
-    var ry = std.math.round(cube.y());
-    var rz = std.math.round(cube.z());
+    var rx = std.math.round(cube.x);
+    var ry = std.math.round(cube.y);
+    var rz = std.math.round(cube.z);
 
-    var x_diff = std.math.absFloat(rx - cube.x());
-    var y_diff = std.math.absFloat(ry - cube.y());
-    var z_diff = std.math.absFloat(rz - cube.z());
+    var x_diff = std.math.absFloat(rx - cube.x);
+    var y_diff = std.math.absFloat(ry - cube.y);
+    var z_diff = std.math.absFloat(rz - cube.z);
 
     if (x_diff > y_diff and x_diff > z_diff) {
         rx = -ry - rz;
@@ -333,14 +333,14 @@ fn cube_round(cube: Vec3f) Vec3f {
 
 fn axial_to_cube(axial: Vec2f) Vec3f {
     return util.vec3f(
-        axial.x(),
-        -axial.x() - axial.y(),
-        axial.y(),
+        axial.x,
+        -axial.x - axial.y,
+        axial.y,
     );
 }
 
 fn cube_to_axial(cube: Vec3f) Vec2f {
-    return vec2f(cube.x(), cube.z());
+    return vec2f(cube.x, cube.z);
 }
 
 const BitmapFont = struct {
@@ -506,10 +506,10 @@ const BitmapFont = struct {
     };
 
     pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, options: DrawOptions) void {
-        var x = pos.x();
+        var x = pos.x;
         var y = switch (options.textBaseline) {
-            .Bottom => pos.y(),
-            .Middle => pos.y() - this.base - std.math.floor(this.lineHeight * options.scale / 2),
+            .Bottom => pos.y,
+            .Middle => pos.y - this.base - std.math.floor(this.lineHeight * options.scale / 2),
         };
         const direction: f32 = switch (options.textAlign) {
             .Left => 1,
@@ -525,7 +525,7 @@ const BitmapFont = struct {
             if (this.glyphs.get(char)) |glyph| {
                 const xadvance = (glyph.xadvance * options.scale);
                 const texture = this.pages[glyph.page];
-                const quad = math.Quad.init(glyph.pos.x(), glyph.pos.y(), glyph.size.x(), glyph.size.y(), this.scale.x(), this.scale.y());
+                const quad = math.Quad.init(glyph.pos.x, glyph.pos.y, glyph.size.x, glyph.size.y, this.scale.x, this.scale.y);
 
                 const textAlignOffset = switch (options.textAlign) {
                     .Left => 0,
@@ -533,8 +533,8 @@ const BitmapFont = struct {
                 };
 
                 const mat = math.Mat32.initTransform(.{
-                    .x = x + glyph.offset.x() + textAlignOffset,
-                    .y = y + glyph.size.y() + glyph.offset.y(),
+                    .x = x + glyph.offset.x + textAlignOffset,
+                    .y = y + glyph.size.y + glyph.offset.y,
                     .sx = options.scale,
                     .sy = options.scale,
                 });

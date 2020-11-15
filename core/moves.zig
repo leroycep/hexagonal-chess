@@ -58,8 +58,8 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 .Black => [2]Vec2i{ vec2i(1, 0), vec2i(-1, 1) },
             };
             for (possible_attacks) |attack_offset| {
-                const usual_attack_location = piece_location.add(attack_offset);
-                const attack_location = if (piece.enPassant != null and piece.enPassant.?.x() == usual_attack_location.x()) piece.enPassant.? else usual_attack_location;
+                const usual_attack_location = piece_location.addv(attack_offset);
+                const attack_location = if (piece.enPassant != null and piece.enPassant.?.x == usual_attack_location.x) piece.enPassant.? else usual_attack_location;
                 const tile = board.get(attack_location);
                 if (tile == null) continue; // tile does not exist
                 if (tile.? == null) continue; // there is no piece on the tile
@@ -76,7 +76,7 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 .Black => vec2i(0, 1),
                 .White => vec2i(0, -1),
             };
-            const one_forward = piece_location.add(direction);
+            const one_forward = piece_location.addv(direction);
             const tile_one_forward = board.get(one_forward);
 
             // Pawn can move forward if there is no one in front of them
@@ -91,7 +91,7 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
             // Pawn can move two forward if it is their first move (and if they could move
             // forward one)
             if (piece.numMoves > 0) return;
-            const two_forward = piece_location.add(direction.scalMul(2));
+            const two_forward = piece_location.addv(direction.scalMul(2));
             const tile_two_forward = board.get(two_forward);
             if (tile_one_forward == null or tile_two_forward.? != null) return;
 
@@ -108,7 +108,7 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
                 .Black => [2]Vec2i{ vec2i(1, 1), vec2i(-1, 2) },
             };
             for (en_passant_locations) |offset, idx| {
-                const pos = piece_location.add(offset);
+                const pos = piece_location.addv(offset);
                 if (board.get(pos)) |en_passant_tile| {
                     if (en_passant_tile) |en_passant_piece| {
                         if (en_passant_piece.color != piece.color and en_passant_piece.kind == .Pawn) {
@@ -193,7 +193,7 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
             };
 
             for (knight_possible_moves) |move_offset| {
-                const move_location = piece_location.add(move_offset);
+                const move_location = piece_location.addv(move_offset);
                 const tile = board.get(move_location) orelse continue;
                 if (tile) |other_piece| {
                     if (other_piece.color == piece.color) continue;
@@ -221,9 +221,9 @@ fn straightLineMoves(board: Board, piece_location: Vec2i, directions: []const Ve
     const piece = board.get(piece_location) orelse return orelse return;
 
     for (directions) |direction| {
-        var current_location = piece_location.add(direction);
+        var current_location = piece_location.addv(direction);
         var distance: usize = 0;
-        while (board.get(current_location)) |tile| : (current_location = current_location.add(direction)) {
+        while (board.get(current_location)) |tile| : (current_location = current_location.addv(direction)) {
             defer distance += 1;
             if (distance >= max_distance) break;
 

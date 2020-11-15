@@ -1,257 +1,303 @@
 const std = @import("std");
 pub fn Vec(comptime S: usize, comptime T: type) type {
+    return switch (S) {
+        2 => struct {
+            x: T = 0,
+            y: T = 0,
+
+            pub usingnamespace VecCommonFns(S, T, @This());
+
+            pub fn init(x: T, y: T) @This() {
+                return @This(){ .x = x, .y = y };
+            }
+
+            pub fn rot90(self: @This()) @This() {
+                return @This(){
+                    .x = -self.x,
+                    .y = self.y,
+                };
+            }
+
+            pub fn rotate(self: @This(), radians: f32) @This() {
+                return .{
+                    .v = [_]T{
+                        self.x * std.math.cos(radians) - self.y * std.math.sin(radians),
+                        self.y * std.math.cos(radians) + self.x * std.math.sin(radians),
+                    },
+                };
+            }
+
+            pub fn sub(self: @This(), x: T, y: T) @This() {
+                return self.subv(init(x, y));
+            }
+
+            pub fn add(self: @This(), x: T, y: T) @This() {
+                return self.addv(init(x, y));
+            }
+
+            pub fn mul(self: @This(), x: T, y: T) @This() {
+                return self.mulv(init(x, y));
+            }
+        },
+        3 => struct {
+            x: T = 0,
+            y: T = 0,
+            z: T = 0,
+
+            pub usingnamespace VecCommonFns(S, T, @This());
+
+            pub fn init(x: T, y: T, z: T) @This() {
+                return @This(){ .x = x, .y = y, .z = z };
+            }
+
+            pub fn cross(self: Self, other: Self) Self {
+                return @This(){
+                    .v = .{
+                        self.y * other.z - self.z * other.y,
+                        self.z * other.x - self.x * other.z,
+                        self.x * other.y - self.y * other.x,
+                    },
+                };
+            }
+
+            pub fn sub(self: @This(), x: T, y: T, z: T) @This() {
+                return self.subv(init(x, y, z));
+            }
+
+            pub fn add(self: @This(), x: T, y: T, z: T) @This() {
+                return self.addv(init(x, y, z));
+            }
+
+            pub fn mul(self: @This(), x: T, y: T, z: T) @This() {
+                return self.mulv(init(x, y, z));
+            }
+        },
+        4 => struct {
+            x: T = 0,
+            y: T = 0,
+            z: T = 0,
+            w: T = 0,
+
+            pub usingnamespace VecCommonFns(S, T, @This());
+
+            pub fn init(xv: T, yv: T, zv: T, wv: T) @This() {
+                return @This(){ .v = .{ .x = x, .y = y, .z = z, .w = w } };
+            }
+
+            pub fn sub(self: @This(), x: T, y: T, z: T, w: T) @This() {
+                return self.subv(init(x, y, z, w));
+            }
+
+            pub fn add(self: @This(), x: T, y: T, z: T, w: T) @This() {
+                return self.addv(init(x, y, z, w));
+            }
+
+            pub fn mul(self: @This(), x: T, y: T, z: T, w: T) @This() {
+                return self.mulv(init(x, y, z, w));
+            }
+        },
+        else => @compileError("Vec of size " ++ S ++ " is not supported"),
+    };
+}
+
+fn VecCommonFns(comptime S: usize, comptime T: type, comptime This: type) type {
     return struct {
-        v: [S]T,
-
-        const Self = @This();
-
-        pub usingnamespace switch (S) {
-            2 => struct {
-                pub fn init(xv: T, yv: T) Self {
-                    return Self{ .v = .{ xv, yv } };
-                }
-
-                pub fn rot90(self: Self) Self {
-                    return Self{
-                        .v = .{
-                            -self.v[1],
-                            self.v[0],
-                        },
-                    };
-                }
-
-                pub fn rotate(self: Self, radians: f32) Self {
-                    return .{
-                        .v = [_]T{
-                            self.x() * std.math.cos(radians) - self.y() * std.math.sin(radians),
-                            self.y() * std.math.cos(radians) + self.x() * std.math.sin(radians),
-                        },
-                    };
-                }
-            },
-            3 => struct {
-                pub fn init(xv: T, yv: T, zv: T) Self {
-                    return Self{ .v = .{ xv, yv, zv } };
-                }
-
-                pub fn cross(self: Self, other: Self) Self {
-                    return Self{
-                        .v = .{
-                            self.v[1] * other.v[2] - self.v[2] * other.v[1],
-                            self.v[2] * other.v[0] - self.v[0] * other.v[2],
-                            self.v[0] * other.v[1] - self.v[1] * other.v[0],
-                        },
-                    };
-                }
-
-                pub fn z(self: Self) T {
-                    return self.v[2];
-                }
-            },
-            4 => struct {
-                pub fn init(xv: T, yv: T, zv: T, wv: T) Self {
-                    return Self{ .v = .{ xv, yv, zv, wv } };
-                }
-
-                pub fn z(self: Self) T {
-                    return self.v[2];
-                }
-
-                pub fn w(self: Self) T {
-                    return self.v[3];
-                }
-            },
-            else => struct {
-                pub fn init() Self {
-                    @compileError("Init is not supported for a Vec of size " ++ S);
-                }
-            },
-        };
-
-        pub fn x(self: @This()) T {
-            return self.v[0];
+        pub fn getField(this: This, comptime index: comptime_int) T {
+            return switch (index) {
+                0 => this.x,
+                1 => this.y,
+                2 => this.z,
+                3 => this.w,
+                else => @compileError("index out of bounds!"),
+            };
         }
 
-        pub fn y(self: @This()) T {
-            return self.v[1];
+        pub fn getFieldMut(this: *This, comptime index: comptime_int) *T {
+            return switch (index) {
+                0 => &this.x,
+                1 => &this.y,
+                2 => &this.z,
+                3 => &this.w,
+                else => @compileError("index out of bounds!"),
+            };
         }
 
-        pub fn sub(self: @This(), other: @This()) @This() {
-            var res: @This() = undefined;
+        pub fn subv(self: This, other: This) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = self.v[i] - other.v[i];
+                res.getFieldMut(i).* = self.getField(i) - other.getField(i);
             }
 
             return res;
         }
 
-        pub fn add(self: @This(), other: @This()) @This() {
-            var res: @This() = undefined;
+        pub fn addv(self: This, other: This) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = self.v[i] + other.v[i];
+                res.getFieldMut(i).* = self.getField(i) + other.getField(i);
             }
 
             return res;
         }
 
-        pub fn mul(self: @This(), other: @This()) @This() {
-            var res: @This() = undefined;
+        pub fn mulv(self: This, other: This) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = self.v[i] * other.v[i];
+                res.getFieldMut(i).* = self.getField(i) * other.getField(i);
             }
 
             return res;
         }
 
-        pub fn scalMul(self: @This(), scal: T) @This() {
-            var res: @This() = undefined;
+        pub fn scalMul(self: This, scal: T) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = self.v[i] * scal;
+                res.getFieldMut(i).* = self.getField(i) * scal;
             }
 
             return res;
         }
 
-        pub fn scalDiv(self: @This(), scal: T) @This() {
-            var res: @This() = undefined;
+        pub fn scalDiv(self: This, scal: T) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = self.v[i] / scal;
+                res.getFieldMut(i).* = self.getField(i) / scal;
             }
 
             return res;
         }
 
-        pub fn normalize(self: @This()) @This() {
+        pub fn normalize(self: This) This {
             const mag = self.magnitude();
-            var res: @This() = undefined;
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = self.v[i] / mag;
+                res.getFieldMut(i).* = self.getField(i) / mag;
             }
 
             return res;
         }
 
-        pub fn maxComponents(self: @This(), other: @This()) @This() {
-            var res: @This() = undefined;
+        pub fn maxComponentsv(self: This, other: This) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = std.math.max(self.v[i], other.v[i]);
+                res.getFieldMut(i).* = std.math.max(self.getField(i), other.getField(i));
             }
 
             return res;
         }
 
-        pub fn minComponents(self: @This(), other: @This()) @This() {
-            var res: @This() = undefined;
+        pub fn minComponentsv(self: This, other: This) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = std.math.min(self.v[i], other.v[i]);
+                res.getFieldMut(i).* = std.math.min(self.getField(i), other.getField(i));
             }
 
             return res;
         }
 
-        pub fn magnitude(self: @This()) T {
+        pub fn magnitude(self: This) T {
             var sum: T = 0;
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                sum += self.v[i] * self.v[i];
+                sum += self.getField(i) * self.getField(i);
             }
-            return @sqrt(sum);
+            return std.math.sqrt(sum);
         }
 
-        pub fn dot(self: @This(), other: @This()) T {
+        pub fn dotv(self: This, other: This) T {
             var sum: T = 0;
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                sum += self.v[i] * other.v[i];
+                sum += self.getField(i) * other.getField(i);
             }
             return sum;
         }
 
-        pub fn eql(self: @This(), other: @This()) bool {
+        pub fn eql(self: This, other: This) bool {
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                if (self.v[i] != other.v[i]) {
+                if (self.getField(i) != other.getField(i)) {
                     return false;
                 }
             }
             return true;
         }
 
-        pub fn floor(self: @This()) @This() {
-            var res: @This() = undefined;
+        pub fn floor(self: This) This {
+            var res: This = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res.v[i] = @floor(self.v[i]);
+                res.getField(i) = @floor(self.getField(i));
             }
 
             return res;
         }
 
-        pub fn intToFloat(self: @This(), comptime F: type) Vec(S, F) {
-            var res: [S]F = undefined;
+        pub fn intToFloat(self: This, comptime F: type) Vec(S, F) {
+            var res: Vec(S, F) = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res[i] = @intToFloat(F, self.v[i]);
+                res.getFieldMut(i).* = @intToFloat(F, self.getField(i));
             }
 
-            return .{ .v = res };
+            return res;
         }
 
-        pub fn floatToInt(self: @This(), comptime I: type) Vec(S, I) {
-            var res: [S]I = undefined;
+        pub fn floatToInt(self: This, comptime I: type) Vec(S, I) {
+            var res: Vec(S, I) = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res[i] = @floatToInt(I, self.v[i]);
+                res.getFieldMut(i).* = @floatToInt(I, self.getField(i));
             }
 
-            return .{ .v = res };
+            return res;
         }
 
-        pub fn floatCast(self: @This(), comptime F: type) Vec(S, F) {
-            var res: [S]F = undefined;
+        pub fn floatCast(self: This, comptime F: type) Vec(S, F) {
+            var res: Vec(S, F) = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res[i] = @floatCast(F, self.v[i]);
+                res.getFieldMut(i).* = @floatCast(F, self.getField(i));
             }
 
-            return .{ .v = res };
+            return res;
         }
 
-        pub fn intCast(self: @This(), comptime I: type) Vec(S, I) {
-            var res: [S]I = undefined;
+        pub fn intCast(self: This, comptime I: type) Vec(S, I) {
+            var res: Vec(S, I) = undefined;
 
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
-                res[i] = @intCast(I, self.v[i]);
+                res.getFieldMut(i).* = @intCast(I, self.getField(i));
             }
 
-            return .{ .v = res };
+            return res;
         }
 
-        pub fn format(self: @This(), comptime fmt: []const u8, opt: std.fmt.FormatOptions, out: anytype) !void {
+        pub fn format(self: This, comptime fmt: []const u8, opt: std.fmt.FormatOptions, out: anytype) !void {
             return switch (S) {
-                2 => std.fmt.format(out, "<{d}, {d}>", .{ self.x(), self.y() }),
-                3 => std.fmt.format(out, "<{d}, {d}, {d}>", .{ self.x(), self.y(), self.z() }),
+                2 => std.fmt.format(out, "<{d}, {d}>", .{ self.x, self.y }),
+                3 => std.fmt.format(out, "<{d}, {d}, {d}>", .{ self.x, self.y, self.z }),
                 else => @compileError("Format is unsupported for this vector size"),
             };
         }

@@ -24,11 +24,11 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
         }
 
         fn idx(this: @This(), pos: Vec2i) ?usize {
-            if (pos.x() < 0 or pos.x() >= SIZE or pos.y() < 0 or pos.y() >= SIZE) {
+            if (pos.x < 0 or pos.x >= SIZE or pos.y < 0 or pos.y >= SIZE) {
                 return null;
             }
-            var q = @intCast(usize, pos.x());
-            var r = @intCast(usize, pos.y());
+            var q = @intCast(usize, pos.x);
+            var r = @intCast(usize, pos.y);
             if (q + r < MIN_POS_SUM or q + r > MAX_POS_SUM) {
                 return null;
             }
@@ -77,19 +77,19 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
 
             pub fn next(this: *@This()) ?Result {
                 while (true) {
-                    if ((this.forwards and this.pos.y() > SIZE) or (!this.forwards and this.pos.y() < 0)) return null;
+                    if ((this.forwards and this.pos.y > SIZE) or (!this.forwards and this.pos.y < 0)) return null;
                     defer {
                         if (this.forwards) {
-                            this.pos.v[0] += 1;
-                            if (this.pos.v[0] > SIZE) {
-                                this.pos.v[0] = 0;
-                                this.pos.v[1] += 1;
+                            this.pos.x += 1;
+                            if (this.pos.x > SIZE) {
+                                this.pos.x = 0;
+                                this.pos.y += 1;
                             }
                         } else {
-                            this.pos.v[0] -= 1;
-                            if (this.pos.v[0] < 0) {
-                                this.pos.v[0] = SIZE;
-                                this.pos.v[1] -= 1;
+                            this.pos.x -= 1;
+                            if (this.pos.x < 0) {
+                                this.pos.x = SIZE;
+                                this.pos.y -= 1;
                             }
                         }
                     }

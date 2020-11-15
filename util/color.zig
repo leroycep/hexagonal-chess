@@ -55,9 +55,9 @@ pub const RGB = struct {
 const KAPPA = 903.29629629629629629630;
 const EPSILON = 0.00885645167903563082;
 const M = [3]util.Vec3f{
-    .{ .v = .{ 3.24096994190452134377, -1.53738317757009345794, -0.49861076029300328366 } },
-    .{ .v = .{ -0.96924363628087982613, 1.87596750150772066772, 0.04155505740717561247 } },
-    .{ .v = .{ 0.05563007969699360846, -0.20397695888897656435, 1.05697151424287856072 } },
+    util.Vec3f.init(3.24096994190452134377, -1.53738317757009345794, -0.49861076029300328366),
+    util.Vec3f.init(-0.96924363628087982613, 1.87596750150772066772, 0.04155505740717561247),
+    util.Vec3f.init(0.05563007969699360846, -0.20397695888897656435, 1.05697151424287856072),
 };
 
 pub const HSLuv = struct {
@@ -112,9 +112,9 @@ pub const HSLuv = struct {
 
         var channel: usize = 0;
         while (channel < 3) : (channel += 1) {
-            const m1 = M[channel].x();
-            const m2 = M[channel].y();
-            const m3 = M[channel].z();
+            const m1 = M[channel].x;
+            const m2 = M[channel].y;
+            const m3 = M[channel].z;
 
             var t: usize = 0;
             while (t < 2) : (t += 1) {
@@ -199,9 +199,9 @@ pub const XYZ = struct {
     pub fn toRGB(this: @This()) RGB {
         const vec = util.vec3f(this.x, this.y, this.z);
         return RGB{
-            .r = @floatToInt(u8, from_linear(M[0].dot(vec)) * 255),
-            .g = @floatToInt(u8, from_linear(M[1].dot(vec)) * 255),
-            .b = @floatToInt(u8, from_linear(M[2].dot(vec)) * 255),
+            .r = @floatToInt(u8, from_linear(M[0].dotv(vec)) * 255),
+            .g = @floatToInt(u8, from_linear(M[1].dotv(vec)) * 255),
+            .b = @floatToInt(u8, from_linear(M[2].dotv(vec)) * 255),
         };
     }
 
