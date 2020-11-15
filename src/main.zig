@@ -57,7 +57,7 @@ fn init() !void {
     batcher = gfx.Batcher.init(allocator, max_sprites_per_batch);
 
     loadTextures();
-    font = BitmapFont.initFromFile(allocator, "assets/PressStart2P_16.fnt") catch unreachable;
+    font = BitmapFont.initFromFile(allocator, "assets/PressStart2P_8.fnt") catch unreachable;
 
     moves_shown = ArrayList(core.moves.Move).init(allocator);
 }
@@ -220,6 +220,7 @@ fn render() !void {
         .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
         .textAlign = .Right,
         .textBaseline = .Middle,
+        .scale = 2,
     });
     sprites[9].draw(&batcher, vec2f(620, 460), switch (clients_player) {
         .White => 0xFFFFFFFF,
@@ -229,6 +230,7 @@ fn render() !void {
         .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
         .textAlign = .Right,
         .textBaseline = .Middle,
+        .scale = 2,
     });
     sprites[9].draw(&batcher, vec2f(620, 430), switch (current_player) {
         .White => 0xFFFFFFFF,
