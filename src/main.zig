@@ -500,13 +500,14 @@ const BitmapFont = struct {
         textAlign: TextAlign = .Left,
         textBaseline: TextBaseline = .Bottom,
         color: math.Color = math.Color.white,
+        scale: f32 = 1,
     };
 
     pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, options: DrawOptions) void {
         var x = pos.x();
         var y = switch (options.textBaseline) {
             .Bottom => pos.y(),
-            .Middle => pos.y() - this.base - std.math.floor(this.lineHeight / 2),
+            .Middle => pos.y() - this.base - std.math.floor(this.lineHeight * options.scale / 2),
         };
         const direction: f32 = switch (options.textAlign) {
             .Left => 1,
@@ -520,21 +521,24 @@ const BitmapFont = struct {
                 .Right => text[text.len - 1 - i],
             };
             if (this.glyphs.get(char)) |glyph| {
+                const xadvance = (glyph.xadvance * options.scale);
                 const texture = this.pages[glyph.page];
                 const quad = math.Quad.init(glyph.pos.x(), glyph.pos.y(), glyph.size.x(), glyph.size.y(), this.scale.x(), this.scale.y());
 
                 const textAlignOffset = switch (options.textAlign) {
                     .Left => 0,
-                    .Right => -glyph.xadvance,
+                    .Right => -xadvance,
                 };
 
                 const mat = math.Mat32.initTransform(.{
                     .x = x + glyph.offset.x() + textAlignOffset,
                     .y = y + glyph.size.y() + glyph.offset.y(),
+                    .sx = options.scale,
+                    .sy = options.scale,
                 });
                 drawbatcher.draw(texture, quad, mat, options.color);
 
-                x += direction * glyph.xadvance;
+                x += direction * xadvance;
             }
         }
     }
