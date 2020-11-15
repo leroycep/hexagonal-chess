@@ -14,43 +14,7 @@ pub const Game = struct {
     pub fn init(alloc: *Allocator) @This() {
         var board = core.Board.init(null);
 
-        board.set(vec2i(1, 4), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(2, 4), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(3, 4), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(4, 4), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(5, 4), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(6, 3), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(7, 2), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(8, 1), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(9, 0), Piece{ .kind = .Pawn, .color = .Black });
-        board.set(vec2i(2, 3), Piece{ .kind = .Rook, .color = .Black });
-        board.set(vec2i(3, 2), Piece{ .kind = .Knight, .color = .Black });
-        board.set(vec2i(4, 1), Piece{ .kind = .Queen, .color = .Black });
-        board.set(vec2i(5, 0), Piece{ .kind = .Bishop, .color = .Black });
-        board.set(vec2i(5, 1), Piece{ .kind = .Bishop, .color = .Black });
-        board.set(vec2i(5, 2), Piece{ .kind = .Bishop, .color = .Black });
-        board.set(vec2i(6, 0), Piece{ .kind = .King, .color = .Black });
-        board.set(vec2i(7, 0), Piece{ .kind = .Knight, .color = .Black });
-        board.set(vec2i(8, 0), Piece{ .kind = .Rook, .color = .Black });
-
-        board.set(vec2i(1, 10), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(2, 9), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(3, 8), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(4, 7), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(5, 6), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(6, 6), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(7, 6), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(8, 6), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(9, 6), Piece{ .kind = .Pawn, .color = .White });
-        board.set(vec2i(2, 10), Piece{ .kind = .Rook, .color = .White });
-        board.set(vec2i(3, 10), Piece{ .kind = .Knight, .color = .White });
-        board.set(vec2i(4, 10), Piece{ .kind = .Queen, .color = .White });
-        board.set(vec2i(5, 10), Piece{ .kind = .Bishop, .color = .White });
-        board.set(vec2i(5, 9), Piece{ .kind = .Bishop, .color = .White });
-        board.set(vec2i(5, 8), Piece{ .kind = .Bishop, .color = .White });
-        board.set(vec2i(6, 9), Piece{ .kind = .King, .color = .White });
-        board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
-        board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
+        setupChess(&this.board);
 
         return .{
             .alloc = alloc,
@@ -87,3 +51,43 @@ pub const Game = struct {
         return error.IllegalMove;
     }
 };
+
+pub fn setupChess(board: *core.Board) void {
+    board.set(vec2i(1, 4), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(2, 4), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(3, 4), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(4, 4), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(5, 4), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(6, 3), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(7, 2), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(8, 1), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(9, 0), Piece{ .kind = .Pawn, .color = .Black });
+    board.set(vec2i(2, 3), Piece{ .kind = .Rook, .color = .Black });
+    board.set(vec2i(3, 2), Piece{ .kind = .Knight, .color = .Black });
+    board.set(vec2i(4, 1), Piece{ .kind = .Queen, .color = .Black });
+    board.set(vec2i(5, 0), Piece{ .kind = .Bishop, .color = .Black });
+    board.set(vec2i(5, 1), Piece{ .kind = .Bishop, .color = .Black });
+    board.set(vec2i(5, 2), Piece{ .kind = .Bishop, .color = .Black });
+    board.set(vec2i(6, 0), Piece{ .kind = .King, .color = .Black });
+    board.set(vec2i(7, 0), Piece{ .kind = .Knight, .color = .Black });
+    board.set(vec2i(8, 0), Piece{ .kind = .Rook, .color = .Black });
+
+    board.set(vec2i(1, 10), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(2, 9), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(3, 8), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(4, 7), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(5, 6), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(6, 6), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(7, 6), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(8, 6), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(9, 6), Piece{ .kind = .Pawn, .color = .White });
+    board.set(vec2i(2, 10), Piece{ .kind = .Rook, .color = .White });
+    board.set(vec2i(3, 10), Piece{ .kind = .Knight, .color = .White });
+    board.set(vec2i(4, 10), Piece{ .kind = .Queen, .color = .White });
+    board.set(vec2i(5, 10), Piece{ .kind = .Bishop, .color = .White });
+    board.set(vec2i(5, 9), Piece{ .kind = .Bishop, .color = .White });
+    board.set(vec2i(5, 8), Piece{ .kind = .Bishop, .color = .White });
+    board.set(vec2i(6, 9), Piece{ .kind = .King, .color = .White });
+    board.set(vec2i(7, 8), Piece{ .kind = .Knight, .color = .White });
+    board.set(vec2i(8, 7), Piece{ .kind = .Rook, .color = .White });
+}

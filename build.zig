@@ -4,6 +4,8 @@ const Builder = std.build.Builder;
 const sep_str = std.fs.path.sep_str;
 const Cpu = std.Target.Cpu;
 const Pkg = std.build.Pkg;
+const gamekit = @import("./zig-gamekit/build.zig");
+const GAMEKIT_PREFIX = "./zig-gamekit/";
 
 const SITE_DIR = "www";
 const UTIL = std.build.Pkg{
@@ -31,12 +33,10 @@ pub fn build(b: *Builder) void {
         tests.linkLibC();
     }
 
-    const native = b.addExecutable("hex-chess", "src/main_native.zig");
+    const native = b.addExecutable("hex-chess", "src/main.zig");
     native.addPackage(UTIL);
     native.addPackage(CORE);
-    native.linkSystemLibrary("SDL2");
-    native.linkSystemLibrary("epoxy");
-    native.linkLibC();
+    gamekit.addGameKitToArtifact(b, native, target, GAMEKIT_PREFIX);
     native.setTarget(target);
     native.setBuildMode(mode);
     native.install();
