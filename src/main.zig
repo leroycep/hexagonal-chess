@@ -225,7 +225,14 @@ fn render() !void {
         .White => 0xFFFFFFFF,
         .Black => 0xFF000000,
     });
-    font.drawText(&batcher, "Hello, world!", vec2f(320, 240), math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF));
+    font.drawText(&batcher, "Hello, world!", vec2f(320, 260), .{
+        .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
+        .textAlign = .Left,
+    });
+    font.drawText(&batcher, "Hello, world!", vec2f(320, 240), .{
+        .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
+        .textAlign = .Right,
+    });
     batcher.end();
     gfx.endPass();
 }
@@ -471,20 +478,43 @@ const BitmapFont = struct {
         this.glyphs.deinit();
     }
 
-    pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, color: math.Color) void {
+    const TextAlign = enum { Left, Right };
+
+    const DrawOptions = struct {
+        textAlign: TextAlign = .Left,
+        color: math.Color = math.Color.white,
+    };
+
+    pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, options: DrawOptions) void {
         var x = pos.x();
         var y = pos.y();
-        for (text) |char| {
+        const direction: f32 = switch (options.textAlign) {
+            .Left => 1,
+            .Right => -1,
+        };
+
+        var i: usize = 0;
+        while (i < text.len) : (i += 1) {
+            const char = switch (options.textAlign) {
+                .Left => text[i],
+                .Right => text[text.len - 1 - i],
+            };
             if (this.glyphs.get(char)) |glyph| {
                 const texture = this.pages[glyph.page];
                 const quad = math.Quad.init(glyph.pos.x(), glyph.pos.y(), glyph.size.x(), glyph.size.y(), this.scale.x(), this.scale.y());
+
+                const textAlignOffset = switch (options.textAlign) {
+                    .Left => 0,
+                    .Right => -glyph.xadvance,
+                };
+
                 const mat = math.Mat32.initTransform(.{
-                    .x = x + glyph.offset.x(),
+                    .x = x + glyph.offset.x() + textAlignOffset,
                     .y = y + glyph.size.y() + glyph.offset.y(),
                 });
-                drawbatcher.draw(texture, quad, mat, color);
+                drawbatcher.draw(texture, quad, mat, options.color);
 
-                x += glyph.xadvance;
+                x += direction * glyph.xadvance;
             }
         }
     }
