@@ -344,6 +344,7 @@ const BitmapFont = struct {
     pages: []gfx.Texture,
     glyphs: std.AutoHashMap(u32, Glyph),
     lineHeight: f32,
+    base: f32,
     scale: Vec2f,
 
     const Glyph = struct {
@@ -363,6 +364,7 @@ const BitmapFont = struct {
         var pages = ArrayList(gfx.Texture).init(alloc);
         var glyphs = std.AutoHashMap(u32, Glyph).init(alloc);
         var lineHeight: f32 = undefined;
+        var base: f32 = undefined;
         var scaleW: f32 = 0;
         var scaleH: f32 = 0;
 
@@ -432,6 +434,8 @@ const BitmapFont = struct {
 
                     if (std.mem.eql(u8, "lineHeight", key)) {
                         lineHeight = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "base", key)) {
+                        base = try std.fmt.parseFloat(f32, value);
                     } else if (std.mem.eql(u8, "scaleW", key)) {
                         scaleW = try std.fmt.parseFloat(f32, value);
                     } else if (std.mem.eql(u8, "scaleH", key)) {
@@ -469,6 +473,7 @@ const BitmapFont = struct {
             .pages = pages.toOwnedSlice(),
             .glyphs = glyphs,
             .lineHeight = lineHeight,
+            .base = base,
             .scale = vec2f(scaleW, scaleH),
         };
     }
@@ -479,15 +484,20 @@ const BitmapFont = struct {
     }
 
     const TextAlign = enum { Left, Right };
+    const TextBaseline = enum { Bottom, Middle };
 
     const DrawOptions = struct {
         textAlign: TextAlign = .Left,
+        textBaseline: TextBaseline = .Bottom,
         color: math.Color = math.Color.white,
     };
 
     pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, options: DrawOptions) void {
         var x = pos.x();
-        var y = pos.y();
+        var y = switch (options.textBaseline) {
+            .Bottom => pos.y(),
+            .Middle => pos.y() - this.base - std.math.floor(this.lineHeight / 2),
+        };
         const direction: f32 = switch (options.textAlign) {
             .Left => 1,
             .Right => -1,
