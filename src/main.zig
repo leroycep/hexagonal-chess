@@ -5,7 +5,7 @@ const math = gamekit.math;
 const core = @import("core");
 const Board = core.Board;
 const util = @import("util");
-const platform = @import("./platform.zig");
+const net = @import("./net.zig");
 
 const ArrayList = std.ArrayList;
 const Vec2i = util.Vec2i;
@@ -24,7 +24,7 @@ const COLOR_CAPTURE = RGB.from_hsluv(12.9, 55.0, 54.2).withAlpha(0x99);
 const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44);
 const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77);
 
-var socket: *platform.net.FramesSocket = undefined;
+var socket: *net.FramesSocket = undefined;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = &gpa.allocator;
@@ -51,7 +51,7 @@ pub fn main() !void {
 
 fn init() !void {
     const localhost = try std.net.Address.parseIp("127.0.0.1", 48836);
-    socket = try platform.net.FramesSocket.init(allocator, localhost);
+    socket = try net.FramesSocket.init(allocator, localhost);
     socket.setOnMessage(onSocketMessage);
 
     batcher = gfx.Batcher.init(allocator, max_sprites_per_batch);
@@ -66,7 +66,7 @@ fn shutdown() !void {
     _ = gpa.deinit();
 }
 
-pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8) void {
+pub fn onSocketMessage(_socket: *net.FramesSocket, message: []const u8) void {
     const packet = core.protocol.ServerPacket.parse(message) catch |e| {
         std.log.err("Could not read packet: {}", .{e});
         return;
@@ -84,7 +84,7 @@ pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8)
 }
 
 fn update() !void {
-    platform.net.update_sockets();
+    net.update_sockets();
 
     const center_tile_pos = flat_hex_to_pixel(HEX_RADIUS, vec2i(5, 5));
     camera_offset = vec2f(320, 240).sub(center_tile_pos);
