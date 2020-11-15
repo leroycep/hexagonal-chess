@@ -212,6 +212,21 @@ fn render() !void {
 
     batcher.end();
     gfx.endPass();
+
+    gfx.beginPass(.{
+        .color_action = .load
+    });
+    batcher.begin();
+    sprites[9].draw(&batcher, vec2f(620, 460), switch (clients_player) {
+        .White => 0xFFFFFFFF,
+        .Black => 0xFF000000,
+    });
+    sprites[9].draw(&batcher, vec2f(620, 430), switch (current_player) {
+        .White => 0xFFFFFFFF,
+        .Black => 0xFF000000,
+    });
+    batcher.end();
+    gfx.endPass();
 }
 
 const Sprite = struct {
