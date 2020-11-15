@@ -5,6 +5,8 @@ const math = gamekit.math;
 const core = @import("core");
 const Board = core.Board;
 const util = @import("util");
+
+const ArrayList = std.ArrayList;
 const Vec2i = util.Vec2i;
 const vec2i = util.vec2i;
 const Vec2f = util.Vec2f;
@@ -12,9 +14,14 @@ const vec2f = util.vec2f;
 const Vec3f = util.Vec3f;
 const RGB = util.color.RGB;
 
-const total_textures = 9;
+const total_textures = 10;
 const max_sprites_per_batch = 1000;
 const HEX_RADIUS = 16;
+const COLOR_SELECTED = RGB.from_hsluv(213.4, 92.2, 77.4).withAlpha(0x99);
+const COLOR_MOVE = RGB.from_hsluv(131.4, 55.0, 54.2).withAlpha(0x99);
+const COLOR_CAPTURE = RGB.from_hsluv(12.9, 55.0, 54.2).withAlpha(0x99);
+const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44);
+const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77);
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = &gpa.allocator;
@@ -22,7 +29,10 @@ var batcher: gfx.Batcher = undefined;
 var textures: []gfx.Texture = undefined;
 var game_board = Board.init(null);
 var camera_offset = vec2f(0, 0);
-var selected = vec2i(5, 5);
+var pos_hovered = vec2i(5, 5);
+var pos_selected: ?Vec2i = null;
+var moves_shown: ArrayList(core.moves.Move) = undefined;
+var current_player = core.piece.Piece.Color.White;
 
 pub fn main() !void {
     try gamekit.run(.{
@@ -39,6 +49,7 @@ fn init() !void {
 
     loadTextures();
 
+    moves_shown = ArrayList(core.moves.Move).init(allocator);
     core.game.setupChess(&game_board);
 }
 
@@ -52,7 +63,32 @@ fn update() !void {
 
     const gk_mousePos = gamekit.input.mousePos();
     const mousePos = vec2f(gk_mousePos.x, 480 - gk_mousePos.y);
-    selected = pixel_to_flat_hex(HEX_RADIUS, mousePos.sub(camera_offset));
+    const new_pos_hovered = pixel_to_flat_hex(HEX_RADIUS, mousePos.sub(camera_offset));
+    if (!new_pos_hovered.eql(pos_hovered) and pos_selected == null) {
+        moves_shown.resize(0) catch unreachable;
+
+        const tile = game_board.get(new_pos_hovered);
+        if (tile != null and tile.? != null) {
+            core.moves.getMovesForPieceAtLocation(game_board, new_pos_hovered, &moves_shown) catch unreachable;
+        }
+    }
+    pos_hovered = new_pos_hovered;
+
+    if (gamekit.input.mousePressed(.left)) {
+        moves_shown.resize(0) catch unreachable;
+
+        if (!std.meta.eql(pos_selected, pos_hovered)) {
+            const tile = game_board.get(pos_hovered);
+            if (tile != null and tile.? != null) {
+                core.moves.getMovesForPieceAtLocation(game_board, pos_hovered, &moves_shown) catch unreachable;
+                pos_selected = pos_hovered;
+            } else {
+                pos_selected = null;
+            }
+        } else {
+            pos_selected = null;
+        }
+    }
 }
 
 fn render() !void {
@@ -71,9 +107,32 @@ fn render() !void {
 
         const texture = textures[@intCast(usize, @mod(res.pos.x() + res.pos.y() * Board.SIZE, 3))];
 
-        const color: u32 = if (res.pos.eql(selected)) 0xFF888888 else 0xFFFFFFFF;
+        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, 0xFFFFFFFF, texture);
 
-        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, color, texture);
+        if (res.pos.eql(pos_hovered)) {
+            batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, 0x88FFFFFF, textures[9]);
+        }
+    }
+
+    if (pos_selected) |pos| {
+        const pcoords = flat_hex_to_pixel(HEX_RADIUS, pos);
+        const color = 0x88000000 | (@intCast(u32, COLOR_SELECTED.b) << 16) | (@intCast(u32, COLOR_SELECTED.g) << 8) | (@intCast(u32, COLOR_SELECTED.r));
+        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, color, textures[9]);
+    }
+
+    for (moves_shown.items) |move| {
+        const move_pos = flat_hex_to_pixel(HEX_RADIUS, move.end_location);
+
+        const move_color = if (move.piece.color == current_player) COLOR_MOVE else COLOR_MOVE_OTHER;
+        const capture_color = if (move.piece.color == current_player) COLOR_CAPTURE else COLOR_CAPTURE_OTHER;
+
+        const platform_color = if (std.meta.eql(move.captured_piece, move.end_location))
+            capture_color
+        else
+            move_color;
+        const color = 0x88000000 | (@intCast(u32, platform_color.b) << 16) | (@intCast(u32, platform_color.g) << 8) | (@intCast(u32, platform_color.r));
+
+        batcher.drawTex(math.Vec2{ .x = move_pos.x() - 16, .y = move_pos.y() - 14 }, color, textures[9]);
     }
 
     board_iter = game_board.backwardsIterator();
@@ -114,6 +173,7 @@ fn loadTextures() void {
     textures[6] = gfx.Texture.initFromFile(allocator, "assets/knight.png", .nearest) catch unreachable;
     textures[7] = gfx.Texture.initFromFile(allocator, "assets/queen.png", .nearest) catch unreachable;
     textures[8] = gfx.Texture.initFromFile(allocator, "assets/king.png", .nearest) catch unreachable;
+    textures[9] = gfx.Texture.initFromFile(allocator, "assets/tile.png", .nearest) catch unreachable;
 }
 
 fn flat_hex_to_pixel(size: f32, hex: Vec2i) Vec2f {
