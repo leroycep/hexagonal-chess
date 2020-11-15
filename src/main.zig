@@ -67,7 +67,6 @@ fn shutdown() !void {
 }
 
 pub fn onSocketMessage(_socket: *platform.net.FramesSocket, message: []const u8) void {
-    std.log.info("Received message {}", .{message});
     const packet = core.protocol.ServerPacket.parse(message) catch |e| {
         std.log.err("Could not read packet: {}", .{e});
         return;
@@ -369,6 +368,7 @@ const BitmapFont = struct {
         var base: f32 = undefined;
         var scaleW: f32 = 0;
         var scaleH: f32 = 0;
+        var expected_num_pages: usize = 0;
 
         var line_iter = std.mem.tokenize(contents, "\n\r");
         while (line_iter.next()) |line| {
@@ -442,6 +442,10 @@ const BitmapFont = struct {
                         scaleW = try std.fmt.parseFloat(f32, value);
                     } else if (std.mem.eql(u8, "scaleH", key)) {
                         scaleH = try std.fmt.parseFloat(f32, value);
+                    } else if (std.mem.eql(u8, "packed", key)) {
+                        // TODO
+                    } else if (std.mem.eql(u8, "pages", key)) {
+                        expected_num_pages = try std.fmt.parseInt(usize, value, 10);
                     } else {
                         std.log.warn("unknown pair for {} kind: {}", .{ kind, pair });
                     }
@@ -469,6 +473,10 @@ const BitmapFont = struct {
                 try pages.resize(id + 1);
                 pages.items[id] = try gfx.Texture.initFromFile(allocator, page_filename, .nearest);
             }
+        }
+
+        if (pages.items.len != expected_num_pages) {
+            std.log.warn("Font pages expected {} != font pages found {}", .{ expected_num_pages, pages.items.len });
         }
 
         return @This(){
