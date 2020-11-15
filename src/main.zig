@@ -217,21 +217,23 @@ fn render() !void {
 
     gfx.beginPass(.{ .color_action = .load });
     batcher.begin();
+    font.drawText(&batcher, "Your Color", vec2f(600, 460), .{
+        .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
+        .textAlign = .Right,
+        .textBaseline = .Middle,
+    });
     sprites[9].draw(&batcher, vec2f(620, 460), switch (clients_player) {
         .White => 0xFFFFFFFF,
         .Black => 0xFF000000,
     });
+    font.drawText(&batcher, "Turn", vec2f(600, 430), .{
+        .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
+        .textAlign = .Right,
+        .textBaseline = .Middle,
+    });
     sprites[9].draw(&batcher, vec2f(620, 430), switch (current_player) {
         .White => 0xFFFFFFFF,
         .Black => 0xFF000000,
-    });
-    font.drawText(&batcher, "Hello, world!", vec2f(320, 260), .{
-        .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
-        .textAlign = .Left,
-    });
-    font.drawText(&batcher, "Hello, world!", vec2f(320, 240), .{
-        .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
-        .textAlign = .Right,
     });
     batcher.end();
     gfx.endPass();
