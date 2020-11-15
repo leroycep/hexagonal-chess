@@ -15,7 +15,7 @@ const vec2f = util.vec2f;
 const Vec3f = util.Vec3f;
 const RGB = util.color.RGB;
 
-const total_textures = 10;
+const total_sprites = 10;
 const max_sprites_per_batch = 1000;
 const HEX_RADIUS = 16;
 const COLOR_SELECTED = RGB.from_hsluv(213.4, 92.2, 77.4).withAlpha(0x99);
@@ -29,7 +29,7 @@ var socket: *platform.net.FramesSocket = undefined;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = &gpa.allocator;
 var batcher: gfx.Batcher = undefined;
-var textures: []gfx.Texture = undefined;
+var sprites: []Sprite = undefined;
 var game_board = Board.init(null);
 var camera_offset = vec2f(0, 0);
 var pos_hovered = vec2i(5, 5);
@@ -158,19 +158,19 @@ fn render() !void {
     while (board_iter.next()) |res| {
         const pcoords = flat_hex_to_pixel(HEX_RADIUS, res.pos);
 
-        const texture = textures[@intCast(usize, @mod(res.pos.x() + res.pos.y() * Board.SIZE, 3))];
+        const sprite = sprites[@intCast(usize, @mod(res.pos.x() + res.pos.y() * Board.SIZE, 3))];
 
-        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, 0xFFFFFFFF, texture);
+        sprite.draw(&batcher, pcoords, 0xFFFFFFFF);
 
         if (res.pos.eql(pos_hovered)) {
-            batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, 0x88FFFFFF, textures[9]);
+            sprites[9].draw(&batcher, pcoords, 0x88FFFFFF);
         }
     }
 
     if (pos_selected) |pos| {
         const pcoords = flat_hex_to_pixel(HEX_RADIUS, pos);
         const color = 0x88000000 | (@intCast(u32, COLOR_SELECTED.b) << 16) | (@intCast(u32, COLOR_SELECTED.g) << 8) | (@intCast(u32, COLOR_SELECTED.r));
-        batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, color, textures[9]);
+        sprites[9].draw(&batcher, pcoords, color);
     }
 
     for (moves_shown.items) |move| {
@@ -179,13 +179,13 @@ fn render() !void {
         const move_color = if (move.piece.color == current_player) COLOR_MOVE else COLOR_MOVE_OTHER;
         const capture_color = if (move.piece.color == current_player) COLOR_CAPTURE else COLOR_CAPTURE_OTHER;
 
-        const platform_color = if (std.meta.eql(move.captured_piece, move.end_location))
+        const platform_color = if (move.captured_piece != null)
             capture_color
         else
             move_color;
         const color = 0x88000000 | (@intCast(u32, platform_color.b) << 16) | (@intCast(u32, platform_color.g) << 8) | (@intCast(u32, platform_color.r));
 
-        batcher.drawTex(math.Vec2{ .x = move_pos.x() - 16, .y = move_pos.y() - 14 }, color, textures[9]);
+        sprites[9].draw(&batcher, move_pos, color);
     }
 
     board_iter = game_board.backwardsIterator();
@@ -198,35 +198,75 @@ fn render() !void {
             .Black => 0xFF222222,
             .White => 0xFFFFFFFF,
         };
-        const texture = switch (tile.kind) {
-            .Pawn => textures[3],
-            .Rook => textures[4],
-            .Bishop => textures[5],
-            .Knight => textures[6],
-            .Queen => textures[7],
-            .King => textures[8],
+        const sprite = switch (tile.kind) {
+            .Pawn => sprites[3],
+            .Rook => sprites[4],
+            .Bishop => sprites[5],
+            .Knight => sprites[6],
+            .Queen => sprites[7],
+            .King => sprites[8],
         };
 
-        batcher.drawTex(math.Vec2{ .x = piece_pos.x(), .y = piece_pos.y() }, color, texture);
+        sprite.draw(&batcher, piece_pos, color);
     }
 
     batcher.end();
     gfx.endPass();
 }
 
-fn loadTextures() void {
-    textures = allocator.alloc(gfx.Texture, total_textures) catch unreachable;
+const Sprite = struct {
+    texture: gfx.Texture,
+    offset: Vec2f,
 
-    textures[0] = gfx.Texture.initFromFile(allocator, "assets/tile0.png", .nearest) catch unreachable;
-    textures[1] = gfx.Texture.initFromFile(allocator, "assets/tile1.png", .nearest) catch unreachable;
-    textures[2] = gfx.Texture.initFromFile(allocator, "assets/tile2.png", .nearest) catch unreachable;
-    textures[3] = gfx.Texture.initFromFile(allocator, "assets/pawn.png", .nearest) catch unreachable;
-    textures[4] = gfx.Texture.initFromFile(allocator, "assets/rook.png", .nearest) catch unreachable;
-    textures[5] = gfx.Texture.initFromFile(allocator, "assets/bishop.png", .nearest) catch unreachable;
-    textures[6] = gfx.Texture.initFromFile(allocator, "assets/knight.png", .nearest) catch unreachable;
-    textures[7] = gfx.Texture.initFromFile(allocator, "assets/queen.png", .nearest) catch unreachable;
-    textures[8] = gfx.Texture.initFromFile(allocator, "assets/king.png", .nearest) catch unreachable;
-    textures[9] = gfx.Texture.initFromFile(allocator, "assets/tile.png", .nearest) catch unreachable;
+    pub fn draw(this: @This(), drawbatcher: *gfx.Batcher, pos: Vec2f, color: u32) void {
+        const dpos = pos.sub(this.offset);
+        batcher.drawTex(math.Vec2{ .x = dpos.x(), .y = dpos.y() }, color, this.texture);
+    }
+};
+
+fn loadTextures() void {
+    sprites = allocator.alloc(Sprite, total_sprites) catch unreachable;
+
+    sprites[0] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/tile0.png", .nearest) catch unreachable,
+        .offset = vec2f(16, 14),
+    };
+    sprites[1] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/tile1.png", .nearest) catch unreachable,
+        .offset = vec2f(16, 14),
+    };
+    sprites[2] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/tile2.png", .nearest) catch unreachable,
+        .offset = vec2f(16, 14),
+    };
+    sprites[3] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/pawn.png", .nearest) catch unreachable,
+        .offset = vec2f(9, 6),
+    };
+    sprites[4] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/rook.png", .nearest) catch unreachable,
+        .offset = vec2f(11, 9),
+    };
+    sprites[5] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/bishop.png", .nearest) catch unreachable,
+        .offset = vec2f(9, 6),
+    };
+    sprites[6] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/knight.png", .nearest) catch unreachable,
+        .offset = vec2f(9, 6),
+    };
+    sprites[7] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/queen.png", .nearest) catch unreachable,
+        .offset = vec2f(9, 6),
+    };
+    sprites[8] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/king.png", .nearest) catch unreachable,
+        .offset = vec2f(11, 6),
+    };
+    sprites[9] = .{
+        .texture = gfx.Texture.initFromFile(allocator, "assets/tile.png", .nearest) catch unreachable,
+        .offset = vec2f(16, 14),
+    };
 }
 
 fn flat_hex_to_pixel(size: f32, hex: Vec2i) Vec2f {
