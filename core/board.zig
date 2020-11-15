@@ -57,7 +57,16 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
             };
         }
 
+        pub fn backwardsIterator(this: *@This()) Iterator {
+            return .{
+                .forwards = false,
+                .board = this,
+                .pos = Vec2i.init(SIZE - 1, SIZE - 1),
+            };
+        }
+
         const Iterator = struct {
+            forwards: bool = true,
             board: *ThisBoard,
             pos: Vec2i,
 
@@ -68,12 +77,20 @@ pub fn Board(comptime T: type, comptime side_len: comptime_int) type {
 
             pub fn next(this: *@This()) ?Result {
                 while (true) {
-                    if (this.pos.y() > SIZE) return null;
+                    if ((this.forwards and this.pos.y() > SIZE) or (!this.forwards and this.pos.y() < 0)) return null;
                     defer {
-                        this.pos.v[0] += 1;
-                        if (this.pos.v[0] > SIZE) {
-                            this.pos.v[0] = 0;
-                            this.pos.v[1] += 1;
+                        if (this.forwards) {
+                            this.pos.v[0] += 1;
+                            if (this.pos.v[0] > SIZE) {
+                                this.pos.v[0] = 0;
+                                this.pos.v[1] += 1;
+                            }
+                        } else {
+                            this.pos.v[0] -= 1;
+                            if (this.pos.v[0] < 0) {
+                                this.pos.v[0] = SIZE;
+                                this.pos.v[1] -= 1;
+                            }
                         }
                     }
 

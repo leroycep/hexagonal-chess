@@ -76,7 +76,7 @@ fn render() !void {
         batcher.drawTex(math.Vec2{ .x = pcoords.x() - 16, .y = pcoords.y() - 14 }, color, texture);
     }
 
-    board_iter = game_board.iterator();
+    board_iter = game_board.backwardsIterator();
     while (board_iter.next()) |res| {
         if (res.tile.* == null) continue;
         const tile = res.tile.*.?;
