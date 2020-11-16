@@ -90,7 +90,7 @@ fn update() !void {
     camera_offset = vec2f(320, 240).subv(center_tile_pos);
 
     const gk_mousePos = gamekit.input.mousePos();
-    const mousePos = vec2f(gk_mousePos.x, 480 - gk_mousePos.y);
+    const mousePos = vec2f(gk_mousePos.x, gk_mousePos.y);
     const new_pos_hovered = pixel_to_flat_hex(HEX_RADIUS, mousePos.subv(camera_offset));
     if (!new_pos_hovered.eql(pos_hovered) and pos_selected == null) {
         moves_shown.resize(0) catch unreachable;
@@ -189,7 +189,7 @@ fn render() !void {
         sprites[9].draw(&batcher, move_pos, color);
     }
 
-    board_iter = game_board.backwardsIterator();
+    board_iter = game_board.iterator();
     while (board_iter.next()) |res| {
         if (res.tile.* == null) continue;
         const tile = res.tile.*.?;
@@ -267,27 +267,27 @@ fn loadTextures() void {
     };
     sprites[3] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/pawn.png", .nearest) catch unreachable,
-        .offset = vec2f(9, 6),
+        .offset = vec2f(9, 25 - 6),
     };
     sprites[4] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/rook.png", .nearest) catch unreachable,
-        .offset = vec2f(11, 9),
+        .offset = vec2f(11, 30 - 9),
     };
     sprites[5] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/bishop.png", .nearest) catch unreachable,
-        .offset = vec2f(9, 6),
+        .offset = vec2f(9, 36 - 6),
     };
     sprites[6] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/knight.png", .nearest) catch unreachable,
-        .offset = vec2f(9, 6),
+        .offset = vec2f(9, 27 - 6),
     };
     sprites[7] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/queen.png", .nearest) catch unreachable,
-        .offset = vec2f(9, 6),
+        .offset = vec2f(9, 32 - 6),
     };
     sprites[8] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/king.png", .nearest) catch unreachable,
-        .offset = vec2f(11, 6),
+        .offset = vec2f(11, 34 - 6),
     };
     sprites[9] = .{
         .texture = gfx.Texture.initFromFile(allocator, "assets/tile.png", .nearest) catch unreachable,
@@ -496,7 +496,7 @@ const BitmapFont = struct {
     }
 
     const TextAlign = enum { Left, Right };
-    const TextBaseline = enum { Bottom, Middle };
+    const TextBaseline = enum { Bottom, Middle, Top };
 
     const DrawOptions = struct {
         textAlign: TextAlign = .Left,
@@ -508,8 +508,9 @@ const BitmapFont = struct {
     pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, options: DrawOptions) void {
         var x = pos.x;
         var y = switch (options.textBaseline) {
-            .Bottom => pos.y,
-            .Middle => pos.y - this.base - std.math.floor(this.lineHeight * options.scale / 2),
+            .Top => pos.y - this.base - std.math.floor(this.lineHeight * options.scale / 2),
+            .Bottom => pos.y + this.base + std.math.floor(this.lineHeight * options.scale / 2),
+            .Middle => pos.y,
         };
         const direction: f32 = switch (options.textAlign) {
             .Left => 1,
@@ -534,7 +535,7 @@ const BitmapFont = struct {
 
                 const mat = math.Mat32.initTransform(.{
                     .x = x + glyph.offset.x + textAlignOffset,
-                    .y = y + glyph.size.y + glyph.offset.y,
+                    .y = y + glyph.offset.y - glyph.size.y,
                     .sx = options.scale,
                     .sy = options.scale,
                 });
