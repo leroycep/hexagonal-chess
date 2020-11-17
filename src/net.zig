@@ -22,15 +22,11 @@ pub const FramesSocket = struct {
     frames: Frames,
     status: Status,
 
-    onopen: ?fn (*@This()) void = null,
-    onmessage: ?fn (*@This(), msg: []const u8) void = null,
-    onerror: ?fn (*@This(), err: Error) void = null,
-    onclose: ?fn (*@This()) void = null,
-
-    //const Message = struct {
-    //    address: Address,
-    //    data: []const u8,
-    //};
+    user_data: usize,
+    onopen: ?fn (*@This(), usize) void = null,
+    onmessage: ?fn (*@This(), usize, msg: []const u8) void = null,
+    onerror: ?fn (*@This(), usize, err: Error) void = null,
+    onclose: ?fn (*@This(), usize) void = null,
 
     const Status = enum {
         Connecting,
@@ -41,7 +37,7 @@ pub const FramesSocket = struct {
 
     const Error = error{ EndOfStream, OutOfMemory } || Socket.RecvFromError;
 
-    pub fn init(alloc: *Allocator, address: Address) !*@This() {
+    pub fn init(alloc: *Allocator, address: Address, user_data: usize) !*@This() {
         for (socket_slots) |*frames_socket_opt| {
             if (frames_socket_opt.* != null) continue;
 
@@ -62,6 +58,7 @@ pub const FramesSocket = struct {
                 .socket = socket,
                 .frames = Frames.init(),
                 .status = status,
+                .user_data = user_data,
             };
 
             return &frames_socket_opt.*.?;
@@ -75,7 +72,7 @@ pub const FramesSocket = struct {
             if (message_recv_opt) |message_recv| {
                 defer this.alloc.free(message_recv);
                 if (this.onmessage) |onmessage| {
-                    onmessage(this, message_recv);
+                    onmessage(this, this.user_data, message_recv);
                 }
             }
         } else |err| {
@@ -84,18 +81,18 @@ pub const FramesSocket = struct {
                 else => {},
             }
             if (this.onerror) |onerror| {
-                onerror(this, err);
+                onerror(this, this.user_data, err);
             } else {
                 std.log.warn("{}", .{err});
             }
         }
     }
 
-    pub fn setOnMessage(this: *@This(), callback: fn (*@This(), msg: []const u8) void) void {
+    pub fn setOnMessage(this: *@This(), callback: fn (*@This(), usize, msg: []const u8) void) void {
         this.onmessage = callback;
     }
 
-    pub fn setOnError(this: *@This(), callback: fn (*@This(), err: Error) void) void {
+    pub fn setOnError(this: *@This(), callback: fn (*@This(), usize, err: Error) void) void {
         this.onerror = callback;
     }
 
