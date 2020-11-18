@@ -22,7 +22,7 @@ pub fn main() !void {
         .shutdown = shutdown,
         .update = update,
         .render = render,
-        .window = .{ .resizable = false, .width = 640, .height = 480 },
+        .window = .{ .title = "Hex Chess", .resizable = false, .width = 640, .height = 480 },
     });
 }
 
