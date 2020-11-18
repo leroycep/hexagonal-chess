@@ -161,7 +161,7 @@ pub const BitmapFont = struct {
         this.glyphs.deinit();
     }
 
-    const TextAlign = enum { Left, Right };
+    const TextAlign = enum { Left, Center, Right };
     const TextBaseline = enum { Bottom, Middle, Top };
 
     const DrawOptions = struct {
@@ -172,36 +172,49 @@ pub const BitmapFont = struct {
     };
 
     pub fn drawText(this: @This(), drawbatcher: *gfx.Batcher, text: []const u8, pos: Vec2f, options: DrawOptions) void {
-        var x = pos.x;
+        var x = switch (options.textAlign) {
+            .Left, .Right => pos.x,
+            .Center => calc_text_width: {
+                var total_width: f32 = 0;
+                for (text) |char| {
+                    if (this.glyphs.get(char)) |glyph| {
+                        const xadvance = (glyph.xadvance * options.scale);
+                        total_width += xadvance;
+                    }
+                }
+                break :calc_text_width pos.x - (total_width / 2);
+            },
+        };
         var y = switch (options.textBaseline) {
-            .Top => pos.y - this.base - std.math.floor(this.lineHeight * options.scale / 2),
-            .Bottom => pos.y + this.base + std.math.floor(this.lineHeight * options.scale / 2),
-            .Middle => pos.y,
+            .Bottom => pos.y - std.math.floor(this.lineHeight * options.scale),
+            .Middle => pos.y - std.math.floor(this.lineHeight * options.scale / 2),
+            .Top => pos.y,
         };
         const direction: f32 = switch (options.textAlign) {
-            .Left => 1,
+            .Left, .Center => 1,
             .Right => -1,
         };
 
         var i: usize = 0;
         while (i < text.len) : (i += 1) {
             const char = switch (options.textAlign) {
-                .Left => text[i],
+                .Left, .Center => text[i],
                 .Right => text[text.len - 1 - i],
             };
             if (this.glyphs.get(char)) |glyph| {
                 const xadvance = (glyph.xadvance * options.scale);
+                const offset = glyph.offset.scale(options.scale);
                 const texture = this.pages[glyph.page];
                 const quad = math.Quad.init(glyph.pos.x, glyph.pos.y, glyph.size.x, glyph.size.y, this.scale.x, this.scale.y);
 
                 const textAlignOffset = switch (options.textAlign) {
-                    .Left => 0,
+                    .Left, .Center => 0,
                     .Right => -xadvance,
                 };
 
                 const mat = math.Mat32.initTransform(.{
-                    .x = x + glyph.offset.x + textAlignOffset,
-                    .y = y + glyph.offset.y - glyph.size.y,
+                    .x = x + offset.x + textAlignOffset,
+                    .y = y + offset.y,
                     .sx = options.scale,
                     .sy = options.scale,
                 });
