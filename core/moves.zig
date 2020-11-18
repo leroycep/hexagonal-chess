@@ -91,7 +91,7 @@ pub fn getMovesForPieceAtLocation(board: Board, piece_location: Vec2i, possible_
             // Pawn can move two forward if it is their first move (and if they could move
             // forward one)
             if (piece.numMoves > 0) return;
-            const two_forward = piece_location.addv(direction.scalMul(2));
+            const two_forward = piece_location.addv(direction.scale(2));
             const tile_two_forward = board.get(two_forward);
             if (tile_one_forward == null or tile_two_forward.? != null) return;
 

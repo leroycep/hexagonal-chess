@@ -1,7 +1,9 @@
 const std = @import("std");
+const math = std.math;
+
 pub fn Vec(comptime S: usize, comptime T: type) type {
     return switch (S) {
-        2 => struct {
+        2 => extern struct {
             x: T = 0,
             y: T = 0,
 
@@ -11,11 +13,12 @@ pub fn Vec(comptime S: usize, comptime T: type) type {
                 return @This(){ .x = x, .y = y };
             }
 
-            pub fn rot90(self: @This()) @This() {
-                return @This(){
-                    .x = -self.x,
-                    .y = self.y,
-                };
+            pub fn orthogonal(self: @This()) @This() {
+                return .{ .x = -self.y, .y = self.x };
+            }
+
+            pub fn perpindicular(self: @This(), v: @This()) @This() {
+                return .{ .x = -1 * (v.y - self.y), .y = v.x - self.x };
             }
 
             pub fn rotate(self: @This(), radians: f32) @This() {
@@ -25,6 +28,14 @@ pub fn Vec(comptime S: usize, comptime T: type) type {
                         self.y * std.math.cos(radians) + self.x * std.math.sin(radians),
                     },
                 };
+            }
+
+            pub fn angleToVec(radians: f32, length: f32) Vec2 {
+                return .{ .x = math.cos(radians) * length, .y = math.sin(radians) * length };
+            }
+
+            pub fn angleBetween(self: Vec2, to: Vec2) f32 {
+                return math.atan2(f32, to.y - self.y, to.x - self.x);
             }
 
             pub fn sub(self: @This(), x: T, y: T) @This() {
@@ -38,8 +49,15 @@ pub fn Vec(comptime S: usize, comptime T: type) type {
             pub fn mul(self: @This(), x: T, y: T) @This() {
                 return self.mulv(init(x, y));
             }
+
+            pub fn replace(self: @This(), xo: ?T, yo: ?T) @This() {
+                return @This(){
+                    .x = if (xo) |x| x else self.x,
+                    .y = if (yo) |y| y else self.y,
+                };
+            }
         },
-        3 => struct {
+        3 => extern struct {
             x: T = 0,
             y: T = 0,
             z: T = 0,
@@ -72,7 +90,7 @@ pub fn Vec(comptime S: usize, comptime T: type) type {
                 return self.mulv(init(x, y, z));
             }
         },
-        4 => struct {
+        4 => extern struct {
             x: T = 0,
             y: T = 0,
             z: T = 0,
@@ -155,7 +173,7 @@ fn VecCommonFns(comptime S: usize, comptime T: type, comptime This: type) type {
             return res;
         }
 
-        pub fn scalMul(self: This, scal: T) This {
+        pub fn scale(self: This, scal: T) This {
             var res: This = undefined;
 
             comptime var i = 0;
@@ -166,7 +184,7 @@ fn VecCommonFns(comptime S: usize, comptime T: type, comptime This: type) type {
             return res;
         }
 
-        pub fn scalDiv(self: This, scal: T) This {
+        pub fn scaleDiv(self: This, scal: T) This {
             var res: This = undefined;
 
             comptime var i = 0;
@@ -211,13 +229,36 @@ fn VecCommonFns(comptime S: usize, comptime T: type, comptime This: type) type {
             return res;
         }
 
-        pub fn magnitude(self: This) T {
+        pub fn clampv(self: This, min: This, max: This) This {
+            var res: This = undefined;
+
+            comptime var i = 0;
+            inline while (i < S) : (i += 1) {
+                res.getFieldMut(i).* = math.clamp(self.getField(i), min.getField(i), max.getField(i));
+            }
+
+            return res;
+        }
+
+        pub fn magnitudeSq(self: This) T {
             var sum: T = 0;
             comptime var i = 0;
             inline while (i < S) : (i += 1) {
                 sum += self.getField(i) * self.getField(i);
             }
-            return std.math.sqrt(sum);
+            return sum;
+        }
+
+        pub fn magnitude(self: This) T {
+            return std.math.sqrt(self.magnitudeSq());
+        }
+
+        pub fn distanceSq(self: This, other: This) T {
+            return self.subv(other).magnitudeSq();
+        }
+
+        pub fn distance(self: This, other: This) T {
+            return self.subv(other).magnitude();
         }
 
         pub fn dotv(self: This, other: This) T {
