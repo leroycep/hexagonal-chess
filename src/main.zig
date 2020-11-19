@@ -29,14 +29,16 @@ pub fn main() !void {
 fn init() !void {
     screen_context = .{
         .allocator = allocator,
-        .current_screen = .StartMenu,
+        .current_screen = .{ .StartMenu = .{} },
         .new_screen = null,
         .batcher = gfx.Batcher.init(allocator, max_sprites_per_batch),
         .font = try BitmapFont.initFromFile(allocator, "assets/PressStart2P_8.fnt"),
     };
+    try screen_context.current_screen.init(&screen_context);
 }
 
 fn shutdown() !void {
+    screen_context.current_screen.deinit(&screen_context);
     _ = gpa.deinit();
 }
 

@@ -28,6 +28,7 @@ const COLOR_MOVE_OTHER = COLOR_MOVE.withAlpha(0x44);
 const COLOR_CAPTURE_OTHER = COLOR_CAPTURE.withAlpha(0x77);
 
 pub const MultiplayerInGame = struct {
+    serverAddress: []u8,
     allocator: *Allocator = undefined,
     socket: *net.FramesSocket = undefined,
     sprites: []Sprite = undefined,
@@ -42,8 +43,7 @@ pub const MultiplayerInGame = struct {
     pub fn init(this: *@This(), context: *Context) !void {
         this.allocator = context.allocator;
 
-        const localhost = try std.net.Address.parseIp("127.0.0.1", 48836);
-        this.socket = try net.FramesSocket.init(this.allocator, localhost, @ptrToInt(this));
+        this.socket = try net.FramesSocket.init(this.allocator, this.serverAddress, @ptrToInt(this));
         this.socket.setOnMessage(onSocketMessage);
 
         this.loadTextures();
