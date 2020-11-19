@@ -22,10 +22,22 @@ pub const Move = struct {
     // Pawns that would be passed and then have an opportunity to perform an en passant
     passed_pawns: [2]?Vec2i = [_]?Vec2i{null} ** 2,
 
-    pub fn perform(this: @This(), board: *Board) void {
+    const PerformResult = struct {
+        capturedPiece: ?Piece,
+    };
+
+    pub fn perform(this: @This(), board: *Board) PerformResult {
+        var perform_result = PerformResult{ .capturedPiece = null };
+
         if (this.captured_piece) |capture| {
-            board.set(capture, null);
+            if (board.get(capture)) |tile| {
+                if (tile) |piece| {
+                    perform_result.capturedPiece = piece;
+                    board.set(capture, null);
+                }
+            }
         }
+
         for (this.passed_pawns) |passed_pawn_location_opt| {
             if (passed_pawn_location_opt) |passed_pawn_location| {
                 const passed_piece_ptr = board.getMut(passed_pawn_location) orelse continue;
@@ -44,6 +56,8 @@ pub const Move = struct {
                 piece.updateEndOfTurn(this.piece.color);
             }
         }
+
+        return perform_result;
     }
 };
 

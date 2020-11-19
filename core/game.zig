@@ -10,6 +10,10 @@ pub const Game = struct {
     alloc: *Allocator,
     board: core.Board,
     currentPlayer: core.piece.Piece.Color,
+    capturedPieces: struct {
+        white: ArrayList(Piece),
+        black: ArrayList(Piece),
+    },
 
     pub fn init(alloc: *Allocator) @This() {
         var board = core.Board.init(null);
@@ -20,6 +24,10 @@ pub const Game = struct {
             .alloc = alloc,
             .board = board,
             .currentPlayer = .White,
+            .capturedPieces = .{
+                .white = ArrayList(Piece).init(alloc),
+                .black = ArrayList(Piece).init(alloc),
+            },
         };
     }
 
@@ -37,7 +45,14 @@ pub const Game = struct {
 
         for (possible_moves.items) |possible_move| {
             if (possible_move.end_location.eql(endPos) and possible_move.start_location.eql(startPos)) {
-                possible_move.perform(&this.board);
+                const result = possible_move.perform(&this.board);
+
+                if (result.capturedPiece) |capturedPiece| {
+                    switch (this.currentPlayer) {
+                        .White => try this.capturedPieces.white.append(capturedPiece),
+                        .Black => try this.capturedPieces.black.append(capturedPiece),
+                    }
+                }
 
                 this.currentPlayer = switch (this.currentPlayer) {
                     .White => .Black,

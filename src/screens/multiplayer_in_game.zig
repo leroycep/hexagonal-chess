@@ -32,8 +32,7 @@ pub const MultiplayerInGame = struct {
     allocator: *Allocator = undefined,
     socket: *net.FramesSocket = undefined,
     sprites: []Sprite = undefined,
-    game_board: Board = Board.init(null),
-    current_player: core.piece.Piece.Color = core.piece.Piece.Color.White,
+    game: core.game.Game = undefined,
     clients_player: core.piece.Piece.Color = core.piece.Piece.Color.White,
     camera_offset: Vec2f = vec2f(0, 0),
     pos_hovered: Vec2i = vec2i(5, 5),
@@ -47,6 +46,8 @@ pub const MultiplayerInGame = struct {
         this.socket.setOnMessage(onSocketMessage);
 
         this.loadTextures();
+
+        this.game = core.game.Game.init(this.allocator);
 
         this.moves_shown = ArrayList(core.moves.Move).init(this.allocator);
     }
@@ -65,16 +66,16 @@ pub const MultiplayerInGame = struct {
         if (!new_pos_hovered.eql(this.pos_hovered) and this.pos_selected == null) {
             this.moves_shown.shrinkRetainingCapacity(0);
 
-            const tile = this.game_board.get(new_pos_hovered);
+            const tile = this.game.board.get(new_pos_hovered);
             if (tile != null and tile.? != null) {
-                core.moves.getMovesForPieceAtLocation(this.game_board, new_pos_hovered, &this.moves_shown) catch unreachable;
+                core.moves.getMovesForPieceAtLocation(this.game.board, new_pos_hovered, &this.moves_shown) catch unreachable;
             }
         }
         this.pos_hovered = new_pos_hovered;
 
         if (gamekit.input.mousePressed(.left)) {
             for (this.moves_shown.items) |shown_move| {
-                if (shown_move.piece.color != this.current_player) break;
+                if (shown_move.piece.color != this.game.currentPlayer) break;
                 if (shown_move.piece.color != this.clients_player) break;
                 if (shown_move.end_location.eql(this.pos_hovered)) {
                     const packet = core.protocol.ClientPacket{
@@ -102,9 +103,9 @@ pub const MultiplayerInGame = struct {
             this.moves_shown.shrinkRetainingCapacity(0);
 
             if (!std.meta.eql(this.pos_selected, this.pos_hovered)) {
-                const tile = this.game_board.get(this.pos_hovered);
+                const tile = this.game.board.get(this.pos_hovered);
                 if (tile != null and tile.? != null) {
-                    core.moves.getMovesForPieceAtLocation(this.game_board, this.pos_hovered, &this.moves_shown) catch unreachable;
+                    core.moves.getMovesForPieceAtLocation(this.game.board, this.pos_hovered, &this.moves_shown) catch unreachable;
                     this.pos_selected = this.pos_hovered;
                 } else {
                     this.pos_selected = null;
@@ -125,7 +126,7 @@ pub const MultiplayerInGame = struct {
         });
         context.batcher.begin();
 
-        var board_iter = this.game_board.iterator();
+        var board_iter = this.game.board.iterator();
         while (board_iter.next()) |res| {
             const pcoords = flat_hex_to_pixel(HEX_RADIUS, res.pos);
 
@@ -147,8 +148,8 @@ pub const MultiplayerInGame = struct {
         for (this.moves_shown.items) |move| {
             const move_pos = flat_hex_to_pixel(HEX_RADIUS, move.end_location);
 
-            const move_color = if (move.piece.color == this.current_player) COLOR_MOVE else COLOR_MOVE_OTHER;
-            const capture_color = if (move.piece.color == this.current_player) COLOR_CAPTURE else COLOR_CAPTURE_OTHER;
+            const move_color = if (move.piece.color == this.game.currentPlayer) COLOR_MOVE else COLOR_MOVE_OTHER;
+            const capture_color = if (move.piece.color == this.game.currentPlayer) COLOR_CAPTURE else COLOR_CAPTURE_OTHER;
 
             const platform_color = if (move.captured_piece != null)
                 capture_color
@@ -159,7 +160,7 @@ pub const MultiplayerInGame = struct {
             this.sprites[9].draw(&context.batcher, move_pos, color);
         }
 
-        board_iter = this.game_board.iterator();
+        board_iter = this.game.board.iterator();
         while (board_iter.next()) |res| {
             if (res.tile.* == null) continue;
             const tile = res.tile.*.?;
@@ -186,6 +187,46 @@ pub const MultiplayerInGame = struct {
 
         gfx.beginPass(.{ .color_action = .load });
         context.batcher.begin();
+
+        // Draw captured pieces
+        var captured_piece_pos = vec2f(16, 16);
+        for (this.game.capturedPieces.white.items) |captured_piece| {
+            const color: u32 = switch (captured_piece.color) {
+                .Black => 0xFF222222,
+                .White => 0xFFFFFFFF,
+            };
+            const sprite = switch (captured_piece.kind) {
+                .Pawn => this.sprites[3],
+                .Rook => this.sprites[4],
+                .Bishop => this.sprites[5],
+                .Knight => this.sprites[6],
+                .Queen => this.sprites[7],
+                .King => this.sprites[8],
+            };
+
+            sprite.draw(&context.batcher, captured_piece_pos, color);
+            captured_piece_pos.x += 32;
+        }
+        captured_piece_pos = vec2f(16, 480 - 16);
+        for (this.game.capturedPieces.black.items) |captured_piece| {
+            const color: u32 = switch (captured_piece.color) {
+                .Black => 0xFF222222,
+                .White => 0xFFFFFFFF,
+            };
+            const sprite = switch (captured_piece.kind) {
+                .Pawn => this.sprites[3],
+                .Rook => this.sprites[4],
+                .Bishop => this.sprites[5],
+                .Knight => this.sprites[6],
+                .Queen => this.sprites[7],
+                .King => this.sprites[8],
+            };
+
+            sprite.draw(&context.batcher, captured_piece_pos, color);
+            captured_piece_pos.x += 32;
+        }
+
+        // Draw turn indicators
         context.font.drawText(&context.batcher, "Your Color", vec2f(600, 460), .{
             .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
             .textAlign = .Right,
@@ -202,7 +243,7 @@ pub const MultiplayerInGame = struct {
             .textBaseline = .Middle,
             .scale = 2,
         });
-        this.sprites[9].draw(&context.batcher, vec2f(620, 430), switch (this.current_player) {
+        this.sprites[9].draw(&context.batcher, vec2f(620, 430), switch (this.game.currentPlayer) {
             .White => 0xFFFFFFFF,
             .Black => 0xFF000000,
         });
@@ -258,19 +299,26 @@ pub const MultiplayerInGame = struct {
 
 pub fn onSocketMessage(_socket: *net.FramesSocket, user_data: usize, message: []const u8) void {
     const this = @intToPtr(*MultiplayerInGame, user_data);
-    
-    const packet = core.protocol.ServerPacket.parse(message) catch |e| {
+
+    const packet = core.protocol.ServerPacket.parse(this.allocator, message) catch |e| {
         std.log.err("Could not read packet: {}", .{e});
         return;
     };
+    defer packet.parseFree(this.allocator);
     switch (packet) {
         .Init => |init_data| this.clients_player = init_data.color,
         .BoardUpdate => |board_update| {
-            this.game_board = Board.deserialize(board_update);
+            this.game.board = Board.deserialize(board_update);
             this.pos_selected = null;
             this.moves_shown.shrinkRetainingCapacity(0);
         },
-        .TurnChange => |turn_change| this.current_player = turn_change,
+        .TurnChange => |turn_change| this.game.currentPlayer = turn_change,
+        .CapturedPiecesUpdate => |pieces_update| {
+            this.game.capturedPieces.white.shrinkRetainingCapacity(0);
+            this.game.capturedPieces.white.appendSlice(pieces_update.white) catch unreachable;
+            this.game.capturedPieces.black.shrinkRetainingCapacity(0);
+            this.game.capturedPieces.black.appendSlice(pieces_update.black) catch unreachable;
+        },
         else => {},
     }
 }

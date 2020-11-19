@@ -46,14 +46,6 @@ pub const Frames = union(enum) {
     }
 };
 
-// Packets from the server
-pub const ServerPacketTag = enum(u8) {
-    Init = 1,
-    ErrorMessage = 2,
-    BoardUpdate = 3,
-    TurnChange = 4,
-};
-
 pub const ServerPacket = union(enum) {
     Init: struct {
         // The color the client will be
@@ -62,6 +54,10 @@ pub const ServerPacket = union(enum) {
     ErrorMessage: ServerError,
     BoardUpdate: core.Board.Serialized,
     TurnChange: core.piece.Piece.Color,
+    CapturedPiecesUpdate: struct {
+        white: []core.piece.Piece,
+        black: []core.piece.Piece,
+    },
 
     pub fn stringify(this: @This(), writer: anytype) !void {
         try writer.writeAll(std.meta.tagName(this));
@@ -77,7 +73,7 @@ pub const ServerPacket = union(enum) {
         }
     }
 
-    pub fn parse(data: []const u8) !@This() {
+    pub fn parse(allocator: *Allocator, data: []const u8) !@This() {
         var split_iter = std.mem.split(data, ":");
 
         const tag = split_iter.next().?;
@@ -85,12 +81,25 @@ pub const ServerPacket = union(enum) {
 
         inline for (std.meta.fields(@This())) |field| {
             if (std.mem.eql(u8, field.name, tag)) {
-                const parsed = try std.json.parse(field.field_type, &std.json.TokenStream.init(packet_data), .{});
+                const parsed = try std.json.parse(field.field_type, &std.json.TokenStream.init(packet_data), .{
+                    .allocator = allocator,
+                });
                 return @unionInit(@This(), field.name, parsed);
             }
         }
 
         return error.InvalidFormat;
+    }
+
+    pub fn parseFree(this: @This(), allocator: *Allocator) void {
+        const Tag = @TagType(@This());
+
+        inline for (std.meta.fields(@This())) |field| {
+            if (this == @field(Tag, field.name)) {
+                std.json.parseFree(field.field_type, @field(this, field.name), .{ .allocator = allocator });
+                return;
+            }
+        }
     }
 };
 

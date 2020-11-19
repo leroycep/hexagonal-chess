@@ -107,6 +107,12 @@ pub fn main() !void {
                             try game.move(move_piece.startPos, move_piece.endPos);
                             broadcastPacket(alloc, &clients, protocol.ServerPacket{ .BoardUpdate = game.board.serialize() });
                             broadcastPacket(alloc, &clients, protocol.ServerPacket{ .TurnChange = game.currentPlayer });
+                            broadcastPacket(alloc, &clients, protocol.ServerPacket{
+                                .CapturedPiecesUpdate = .{
+                                    .white = game.capturedPieces.white.items,
+                                    .black = game.capturedPieces.black.items,
+                                },
+                            });
                         },
                     }
 
