@@ -19,8 +19,8 @@ pub const StartMenu = struct {
     }
 
     pub fn update(this: *@This(), context: *Context) !void {
-        if (gamekit.input.text_input != null) {
-            try this.server_address.appendSlice(gamekit.input.text_input.?);
+        if (gamekit.input.textInput()) |text_input| {
+            try this.server_address.appendSlice(text_input);
         }
         if (gamekit.input.keyPressed(.backspace)) {
             pop_utf8_codepoint(&this.server_address);
@@ -47,7 +47,7 @@ pub const StartMenu = struct {
             .color = math.Color.fromBytes(0x00, 0x00, 0x00, 0xFF),
             .textAlign = .Center,
             .textBaseline = .Middle,
-            .scale = 4,
+            .scale = 2,
         });
         context.batcher.end();
         gfx.endPass();
