@@ -15,7 +15,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const alloc = &gpa.allocator;
 
-    const localhost = try Address.parseIp("127.0.0.1", 48836);
+    const localhost = try Address.parseIp("::", 48836);
 
     var server = NonblockingStreamServer.init(.{ .reuse_address = true });
     defer server.deinit();
