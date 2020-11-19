@@ -37,9 +37,27 @@ pub const FramesSocket = struct {
 
     const Error = error{ EndOfStream, OutOfMemory } || Socket.RecvFromError;
 
-    pub fn init(alloc: *Allocator, address: Address, user_data: usize) !*@This() {
+    pub fn init(alloc: *Allocator, url: []const u8, user_data: usize) !*@This() {
         for (socket_slots) |*frames_socket_opt| {
             if (frames_socket_opt.* != null) continue;
+
+            // TODO: Full url parsing
+            var address_port_iter = std.mem.split(url, ":");
+            const addressText = address_port_iter.next().?;
+
+            var port: u16 = 48836;
+            if (address_port_iter.next()) |portText| {
+                port = std.fmt.parseInt(u16, portText, 10) catch return error.SyntaxError;
+            }
+
+            const address_list = try std.net.getAddressList(alloc, addressText, port);
+            defer address_list.deinit();
+
+            if (address_list.addrs.len < 1) return error.UnknownHost;
+
+            const address = address_list.addrs[0];
+
+            std.log.debug("address: {}", .{address});
 
             const sock_flags = std.os.SOCK_STREAM | std.os.SOCK_NONBLOCK | std.os.SOCK_CLOEXEC;
             const sockfd = try std.os.socket(address.any.family, sock_flags, std.os.IPPROTO_TCP);
@@ -103,7 +121,7 @@ pub const FramesSocket = struct {
 };
 
 const Socket = struct {
-    handle: std.os.fd_t,
+    handle: std.os.socket_t,
 
     const RecvFromError = std.os.RecvFromError;
 
