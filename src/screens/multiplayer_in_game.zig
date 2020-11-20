@@ -88,9 +88,9 @@ pub const MultiplayerInGame = struct {
                     var packet_data = ArrayList(u8).init(this.allocator);
                     defer packet_data.deinit();
 
-                    packet.stringify(packet_data.writer()) catch unreachable;
+                    try packet.stringify(packet_data.writer());
 
-                    this.socket.send(packet_data.items) catch unreachable;
+                    try this.socket.send(packet_data.items);
                     std.log.debug("Sending packet: {}", .{packet_data.items});
 
                     this.moves_shown.shrinkRetainingCapacity(0);

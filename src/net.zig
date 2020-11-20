@@ -95,7 +95,7 @@ pub const FramesSocket = struct {
             }
         } else |err| {
             switch (err) {
-                error.ConnectionRefused => this.status = .Closed,
+                error.SocketNotBound, error.ConnectionRefused, error.EndOfStream => this.status = .Closed,
                 else => {},
             }
             if (this.onerror) |onerror| {
